@@ -1,13 +1,21 @@
 name: Build and publish Prop Finder
 on:
   schedule:
-    - cron: "45 10 * * *"   # about 6:45 AM Eastern: fresh stats
-    - cron: "15 22 * * *"   # about 6:15 PM Eastern: that day's practice reports
+    - cron: "45 10 * * *"   # daily ~6:45 AM Eastern: fresh stats + injuries
+    - cron: "15 22 * * *"   # daily ~6:15 PM Eastern: that day's practice reports
+    - cron: "0 22 * * 3"    # Wednesday ~6 PM Eastern: sportsbook lines for Thursday's game
+    - cron: "0 18 * * 6"    # Saturday ~2 PM Eastern: sportsbook lines for Sunday's games
+    - cron: "30 22 * * 0"   # Sunday ~6:30 PM Eastern: sportsbook lines for Monday's game
   push:
     branches: [main]        # republish whenever you change a file
-  workflow_dispatch: {}     # "Run workflow" button in the Actions tab
+  workflow_dispatch:        # "Run workflow" button in the Actions tab
+    inputs:
+      lines:
+        description: "Also pull sportsbook lines now (uses Odds API credits)"
+        type: boolean
+        default: false
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 concurrency:
@@ -24,10 +32,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Pull DraftKings + FanDuel lines
+        if: github.event.schedule == '0 22 * * 3' || github.event.schedule == '0 18 * * 6' || github.event.schedule == '30 22 * * 0' || inputs.lines
+        continue-on-error: true
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          python3 build_odds.py .
+          git config user.name "prop-finder-bot"
+          git config user.email "prop-finder-bot@users.noreply.github.com"
+          git add odds.json
+          git diff --cached --quiet || (git commit -m "Update sportsbook lines" && git push)
       - name: Download stats and injury reports
         run: |
           mkdir -p site
           cp index.html site/
+          if [ -f odds.json ]; then cp odds.json site/; fi
           python3 build_data.py site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
