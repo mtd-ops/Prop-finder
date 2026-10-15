@@ -474,6 +474,8 @@ function check(e){
   const notes=[];
   if(f!==1)notes.push(`Projection ${m.toFixed(1)} is his average ${m0.toFixed(1)} × ${f.toFixed(2)} for the ${opp} defense.`);
   if(N<8)notes.push({w:1,t:`Only ${N} games in the sample, so treat the numbers as rough.`});
+  if(S.td&&overs<=1&&line<1)notes.push({w:1,t:`He scored in only ${overs} of these ${N} games. One fluke touchdown can make a long shot look like value; check his role before betting.`});
+  {const g8=sel.filter(z=>!z.zero),use=g8.length?mean(g8.map(z=>z[C.tgt]+z[C.car])):0;if(p.p!=="QB"&&use<3)notes.push({w:1,t:`Small role: ${use.toFixed(1)} targets + carries a game. Low-usage players are hard to project.`})}
   if(best.edge>.10)notes.push({w:1,t:"An edge over 10% usually means the model is missing something (injury, role change, small sample). Check before betting."});
   if(sel.some(g=>g.zero))notes.push(`${sel.filter(g=>g.zero).length} game(s) counted as 0 where he had no recorded stats.`);
   injNotes(p,team,opp).forEach(x=>notes.push(x));
@@ -1105,7 +1107,12 @@ function scanValue(){
       const label=td?`${p.n} ${side==="Yes"?"anytime TD":"no TD"}`:`${p.n} ${side} ${x.line} ${SHORT[stat]}`;
       const leg={label,player:p.n,pos:p.p,team,opp,game:gk,stat,side,line:x.line,odds:x.odds,p:x.model_prob,edge:x.edge,book:x.book,
         hit:sd==="over"?x.r.hit_over:x.r.hit_under,n:x.r.games_used,q:inj&&inj.cur&&inj.gs==="Questionable"};
-      leg.flag=x.edge>.10?"edge over 10%: likely missing news":x.r.games_used<(R.games||8)?`only ${x.r.games_used} games of data`:"";
+      const g8=p.g.slice(-8),use=g8.length?mean(g8.map(z=>z[C.tgt]+z[C.car])):0,ratio=x.model_prob/imp(x.odds);
+      leg.flag=x.edge>.10?"edge over 10%: likely missing news":x.r.games_used<(R.games||8)?`only ${x.r.games_used} games of data`
+        :x.odds>400?"long shot: a fluke game or two drives the model"
+        :ratio>1.5?`model says ${ratio.toFixed(1)}× the book's chance: usually a small sample`
+        :(p.p!=="QB"&&use<3)?`small role (${use.toFixed(1)} touches/targets a game)`
+        :(mk==="player_anytime_td"&&sd==="over"&&leg.hit<2)?`only ${leg.hit} TD game${leg.hit===1?"":"s"} in the sample`:"";
       leg.value=x.edge>=minE&&!leg.flag;
       leg.tags=scriptTags(leg);out.push(leg)}}
   return out.sort((a,b)=>b.edge-a.edge)}
