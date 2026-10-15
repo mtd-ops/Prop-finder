@@ -441,6 +441,8 @@ function check(e){
   let p=byName.get(name);if(!p){const hits=D.players.filter(x=>x.n.toLowerCase().includes(name));p=name&&hits.sort((a,b)=>b.g.length-a.g.length)[0]}
   if(!p){out.innerHTML='<div class="card empty">No player matches that name. Pick one from the suggestions.</div>';return}
   $("player").value=p.n;$("player-x").hidden=false;
+  refreshStats(p,true);
+  if($("stat").selectedOptions[0]&&$("stat").selectedOptions[0].disabled){out.innerHTML=`<div class="card empty">${esc(p.n)} doesn't get ${esc($("stat").value.toLowerCase())} in his role. Pick one of the stats that aren't greyed out.</div>`;return}
   const stat=$("stat").value,S=STATS[stat];let line,o,u,X=null;const ms=MODE==="ms";
   try{if(ms){X=parseFloat($("line").value);if(!isFinite(X)||X<1||X!==Math.round(X))throw new Error('Enter the milestone as a whole number, like 90 for "90+".');
       line=X-.5;o=parseOdds($("over").value);u=null;if(o==null)throw new Error(`Enter the book's price for ${X}+.`)}
@@ -1027,6 +1029,26 @@ $("player").addEventListener("change",()=>setTimeout(fillLines,0));
 $("stat").addEventListener("change",fillLines);
 fetch("odds.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d){ODDS=d;indexOdds()}}).catch(()=>{}).finally(()=>{$("book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.b===BOOK))});
 
+// ---------- stat menu: grey out stats that don't fit the player's role; mark stats with a pulled line
+function roleStats(p){const g=p.g.slice(-8);const av=k=>g.length?mean(g.map(x=>x[C[k]])):0;
+  const pass=av("att")>=8,rush=av("car")>=.75,rec=av("tgt")>=.75;
+  return{"Receiving Yards":rec,"Receptions":rec,"Targets":rec,"Receiving TDs":rec,"Anytime TD (rush + rec)":rush||rec,
+    "Rushing Yards":rush,"Rush Attempts":rush,"Rushing TDs":rush,"Rush + Rec Yards":rec||(rush&&p.p==="RB"),
+    "Passing Yards":pass,"Pass Attempts":pass,"Pass Completions":pass,"Passing TDs":pass,"Interceptions":pass,"Pass + Rush Yards":pass}}
+function refreshStats(p,keep){const sel=$("stat");const ok=p?roleStats(p):null;
+  const hasOdds=typeof linesFor==="function"&&typeof ODDS!=="undefined"&&ODDS&&typeof BOOK!=="undefined"&&BOOK;
+  const ab={draftkings:"DK",fanduel:"FD"};let firstLine=null;
+  for(const o of sel.options){const st=o.value;let txt=st,dis=false;
+    if(ok&&!ok[st]){dis=true;txt=st+" (not his role)"}
+    else if(p&&hasOdds){const L=linesFor(p.n,st);if(L&&L[BOOK]){txt=st+" · "+ab[BOOK]+" line";if(!firstLine)firstLine=st}else if(L){const ob=Object.keys(L)[0];txt=st+" · "+(ab[ob]||ob)+" only"}}
+    o.disabled=dis;o.textContent=txt}
+  const curO=sel.selectedOptions[0];
+  if(!keep&&p&&curO&&curO.disabled){
+    const pick=firstLine||[...sel.options].find(o=>!o.disabled)?.value;if(pick&&pick!==sel.value){sel.value=pick;sel.dispatchEvent(new Event("change"))}}}
+$("player").addEventListener("change",()=>{const q=$("player").value.trim().toLowerCase();if(!q||!D){refreshStats(null);return}
+  const p=byName.get(q)||D.players.filter(x=>x.n.toLowerCase().includes(q)).sort((a,b)=>b.g.length-a.g.length)[0];refreshStats(p||null)});
+if(document.getElementById("book"))$("book").addEventListener("click",()=>setTimeout(()=>{const q=$("player").value.trim().toLowerCase();const p=q&&D&&byName.get(q);if(p)refreshStats(p,true)},0));
+
 // ---------- name autocomplete + clear
 function autocomplete(input,list,xbtn,source,onPick){
   let items=[],sel=-1;
@@ -1056,13 +1078,13 @@ autocomplete($("player"),$("player-acl"),$("player-x"),q=>{if(!D)return[];
   const seen=new Set(),arr=[];for(const p of D.players){const k=p.n.toLowerCase();if(seen.has(k))continue;seen.add(k);
     const lg=p.g[p.g.length-1];arr.push({v:p.n,sub:`${p.p} · ${lg[C.team]}`,score:(lg[0]===D.latest.season?100:0)+lg[1]+p.g.length/100,p})}
   return rankNames(arr,q,x=>x.v)},
- it=>{const t=it.p.g[it.p.g.length-1][C.team];
+ it=>{refreshStats(it.p);const t=it.p.g[it.p.g.length-1][C.team];
   if(typeof IJ!=="undefined"&&IJ){const g=IJ.games.find(x=>x.a===t||x.h===t);if(g){const o=g.a===t?g.h:g.a;if([...$("opp").options].some(x=>x.value===o))$("opp").value=o}}
   fillLines();$("line").focus()});
 autocomplete($("ij-q"),$("ij-acl"),$("ij-x"),q=>{if(typeof IJ==="undefined"||!IJ)return[];
   return rankNames(IJ.players.map(e=>({v:e.n,sub:`${e.pos} · ${e.t}${e.cur?" · "+(e.gs||e.ps||"listed"):""}`,score:e.cur*10+e.sig,e})),q,x=>x.v)},
  it=>showOne(it.e));
-$("clearform").addEventListener("click",()=>{["player","line","over","under"].forEach(id=>$(id).value="");$("opp").value="";$("player-x").hidden=true;$("out").innerHTML="";$("odds-hint").hidden=true;$("player").focus()});
+$("clearform").addEventListener("click",()=>{["player","line","over","under"].forEach(id=>$(id).value="");$("opp").value="";$("player-x").hidden=true;$("out").innerHTML="";refreshStats(null);$("odds-hint").hidden=true;$("player").focus()});
 
 // ---------- Value board: scan every pulled line with the prop model, group by game/team, build same-script parlays
 const MKT_STAT=Object.fromEntries(Object.entries(MKT).map(([s,m])=>[m,s]));
@@ -1159,7 +1181,7 @@ $("vb-book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed"
 $("tab-value").addEventListener("click",()=>setTimeout(renderValue,0));
 
 // ---------- wiring
-$("stat").innerHTML=Object.keys(STATS).map(s=>`<option>${s}</option>`).join("");
+$("stat").innerHTML=Object.keys(STATS).map(s=>`<option value="${s}">${s}</option>`).join("");
 $("stat").addEventListener("change",()=>{const td=STATS[$("stat").value].td;if(td){if($("under").value.trim()==="-110")$("under").value="";if(!$("line").value)$("line").value=MODE==="ms"?"1":"0.5"}else if(!$("under").value.trim())$("under").value="-110"});
 $("form").addEventListener("submit",check);
 ["sitepx","boost","stake"].forEach(id=>$(id).addEventListener("input",renderParlay));
