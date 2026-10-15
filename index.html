@@ -1,0 +1,930 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Prop Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column, phone first; header strip like a yard-line marker, two tabs (Check / Parlay) */
+:root{
+  --bg:#f2f4f1; --surface:#ffffff; --sunk:#e8ece6; --line:#d3dacf;
+  --fg:#18211b; --muted:#5d6b61; --accent:#1d6b45; --accent-ink:#ffffff;
+  --good:#16804a; --good-bg:#dff2e6; --warn:#a86a00; --warn-bg:#fbefd2; --bad:#b33a2e; --bad-bg:#f8e1dd;
+  --head:#123b27; --head-fg:#e9f3ec; --head-dim:#9fbfac;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1511; --surface:#16201a; --sunk:#1c2820; --line:#2a3a30;
+  --fg:#e6eee8; --muted:#93a59a; --accent:#4cc286; --accent-ink:#06210f;
+  --good:#5fd394; --good-bg:#14301f; --warn:#e8b54a; --warn-bg:#33270e; --bad:#f08072; --bad-bg:#3a1a16;
+  --head:#0a2417; --head-fg:#e2efe6; --head-dim:#7fa58e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1511; --surface:#16201a; --sunk:#1c2820; --line:#2a3a30;
+  --fg:#e6eee8; --muted:#93a59a; --accent:#4cc286; --accent-ink:#06210f;
+  --good:#5fd394; --good-bg:#14301f; --warn:#e8b54a; --warn-bg:#33270e; --bad:#f08072; --bad-bg:#3a1a16;
+  --head:#0a2417; --head-fg:#e2efe6; --head-dim:#7fa58e; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:0 40px}
+header.top{background:var(--head);color:var(--head-fg);padding-block:14px 0;position:relative;overflow:hidden}
+header.top::after{content:"";position:absolute;left:0;right:0;bottom:44px;height:10px;
+  background:repeating-linear-gradient(90deg,var(--head-dim) 0 2px,transparent 2px 22px);opacity:.35}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:800;font-size:2rem;letter-spacing:.02em;margin:0;text-transform:uppercase;line-height:1}
+.fresh{font-size:.78rem;color:var(--head-dim);font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:4px;margin-top:26px}
+.tabs button{flex:1;font:700 1.05rem var(--f-display);letter-spacing:.06em;text-transform:uppercase;
+  background:transparent;color:var(--head-dim);border:0;padding:10px 8px 12px;border-bottom:3px solid transparent;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--head-fg);border-bottom-color:var(--accent)}
+.tabs .count{display:inline-block;min-width:1.4em;margin-left:6px;padding:0 6px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:.85rem}
+section.panel{display:grid;gap:16px;padding-top:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0}
+h2{font-family:var(--f-display);font-weight:700;font-size:1.15rem;letter-spacing:.06em;text-transform:uppercase;margin:0;color:var(--muted)}
+label{display:grid;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted);letter-spacing:.02em}
+input,select{font:500 1rem var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 11px;width:100%;min-width:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.checks{display:flex;flex-wrap:wrap;gap:8px 16px}
+.checks label{display:flex;align-items:center;gap:8px;font-weight:500;font-size:.88rem;color:var(--fg)}
+.checks input{width:auto}
+.hint{font-size:.78rem;color:var(--muted);margin:0}
+.btn{font:700 1.05rem var(--f-display);letter-spacing:.06em;text-transform:uppercase;border:0;border-radius:8px;padding:12px 16px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:var(--sunk);color:var(--fg)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row .btn{flex:1}
+.verdict{border-radius:10px;padding:14px 16px;display:grid;gap:4px}
+.verdict b{font-family:var(--f-display);font-size:1.45rem;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
+.verdict span{font-size:.9rem}
+.v-good{background:var(--good-bg);color:var(--good)} .v-warn{background:var(--warn-bg);color:var(--warn)} .v-bad{background:var(--bad-bg);color:var(--bad)}
+.v-good span,.v-warn span,.v-bad span{color:var(--fg)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th{font:600 .72rem var(--f-body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.num,th.num{text-align:right}
+.pill{display:inline-block;font:600 .72rem var(--f-body);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:20px}
+.p-good{background:var(--good-bg);color:var(--good)} .p-bad{background:var(--bad-bg);color:var(--bad)} .p-warn{background:var(--warn-bg);color:var(--warn)} .p-mute{background:var(--sunk);color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--sunk);border-radius:8px;padding:8px 10px;display:grid;gap:2px}
+.stat small{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.stat strong{font:500 1.1rem var(--f-mono);font-variant-numeric:tabular-nums}
+.bars{display:flex;align-items:flex-end;gap:4px;height:84px;position:relative;padding-top:4px}
+.bars .b{flex:1;border-radius:3px 3px 0 0;min-height:2px;background:var(--bad)}
+.bars .b.o{background:var(--good)} .bars .b.z{background:var(--line)}
+.bars .ln{position:absolute;left:0;right:0;border-top:2px dashed var(--fg);opacity:.55}
+.notes{display:grid;gap:6px;margin:0;padding-left:18px;font-size:.88rem}
+.notes li.w{color:var(--bad)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.leg{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
+.leg:last-child{border-bottom:0}
+.leg .t{font-weight:600;min-width:0}
+.leg .m{font-size:.8rem;color:var(--muted);grid-column:1}
+.leg button{grid-row:1/3;grid-column:2;background:var(--sunk);border:0;border-radius:6px;color:var(--fg);padding:8px 10px;cursor:pointer;font-size:.8rem}
+.big{font:800 2.4rem var(--f-display);letter-spacing:.02em;line-height:1}
+.empty{color:var(--muted);font-size:.9rem;text-align:center;padding:18px 8px}
+.loading{padding:40px 0;text-align:center;color:var(--muted)}
+.rules{display:flex;flex-wrap:wrap;gap:6px}
+.bet{display:grid;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
+.bet:last-child{border-bottom:0}
+.bet .t{font-weight:600;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.bet .t .pl{font:500 .95rem var(--f-mono);white-space:nowrap}
+.bet .m{font-size:.8rem;color:var(--muted)}
+.bet .ctl{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.bet .ctl input,.bet .ctl select{padding:7px 9px;font-size:.9rem}
+.bet .ctl button{background:var(--sunk);border:0;border-radius:6px;color:var(--fg);padding:9px 10px;cursor:pointer;font-size:.8rem}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.tabs button{white-space:nowrap}
+.tabs{overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}.tabs button{flex:1 0 auto}
+@media (max-width:420px){.tabs{gap:0}.tabs button{font-size:.86rem;letter-spacing:.02em;padding-inline:5px}.tabs .count{margin-left:4px;padding:0 5px}}
+.ij{display:grid;gap:5px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.ij:last-child{border-bottom:0}
+.ij .t{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-weight:600}
+.ij .m{font-size:.82rem;color:var(--muted)}
+.ij .t .pill{white-space:nowrap;flex:none}
+.ij .m b{color:var(--fg);font-weight:600}
+.trend{display:flex;gap:4px;flex-wrap:wrap;align-items:center;font-size:.75rem;color:var(--muted)}
+.chat{display:grid;gap:10px;min-height:120px}
+.msg{padding:10px 12px;border-radius:10px;max-width:92%;font-size:.93rem;overflow-wrap:anywhere}
+.msg.u{background:var(--accent);color:var(--accent-ink);justify-self:end;white-space:pre-wrap}
+.msg.a{background:var(--sunk);justify-self:start}
+.msg.a p{margin:0 0 8px}.msg.a p:last-child{margin:0}.msg.a ul{margin:4px 0 8px;padding-left:18px}
+.msg.t{font-size:.75rem;color:var(--muted);padding:0 4px;justify-self:start}
+.msg img{max-width:160px;border-radius:6px;display:block;margin-top:6px}
+.askbar{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:end}
+.askbar textarea{font:500 1rem var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 11px;min-height:44px;max-height:160px;resize:vertical;width:100%}
+.iconbtn{background:var(--sunk);border:0;border-radius:8px;color:var(--fg);padding:11px 12px;cursor:pointer;font-size:1rem}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{background:var(--sunk);border:0;border-radius:20px;color:var(--fg);padding:6px 11px;font:500 .8rem var(--f-body);cursor:pointer;text-align:left}
+details.set summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:.85rem}
+.filt{display:flex;gap:6px;flex-wrap:wrap}
+.filt button{background:var(--sunk);border:0;border-radius:20px;color:var(--muted);padding:5px 12px;font:600 .78rem var(--f-body);cursor:pointer}
+.filt button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+@media (max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}.grid3{grid-template-columns:1fr 1fr}}
+@media (prefers-reduced-motion:no-preference){.verdict{animation:pop .25s ease-out}@keyframes pop{from{transform:translateY(4px);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+
+<header class="top">
+  <div class="wrap" style="padding-block:0">
+    <div class="brand"><h1>Prop Finder</h1><span class="fresh" id="fresh">Loading stats…</span></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tab-check" aria-selected="true" aria-controls="panel-check">Props</button>
+      <button role="tab" id="tab-parlay" aria-selected="false" aria-controls="panel-parlay">Parlay<span class="count" id="legcount">0</span></button>
+      <button role="tab" id="tab-log" aria-selected="false" aria-controls="panel-log">Log<span class="count" id="logcount">0</span></button>
+      <button role="tab" id="tab-inj" aria-selected="false" aria-controls="panel-inj">Injuries<span class="count" id="injcount">0</span></button>
+      <button role="tab" id="tab-ask" aria-selected="false" aria-controls="panel-ask">Ask</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+<section class="panel" id="panel-check" role="tabpanel">
+  <form class="card" id="form" autocomplete="off">
+    <h2>The prop</h2>
+    <label for="player">Player<input id="player" list="players" placeholder="Start typing a name, e.g. Bo Nix"></label>
+    <datalist id="players"></datalist>
+    <div class="grid2">
+      <label for="stat">Stat<select id="stat"></select></label>
+      <label for="line">Line<input id="line" inputmode="decimal" placeholder="13.5"></label>
+    </div>
+    <p class="hint">A "91+" milestone is the same as over 90.5. Anytime TD is 0.5.</p>
+    <div class="grid2">
+      <label for="over">Over price<input id="over" inputmode="numeric" value="-110"></label>
+      <label for="under">Under price<input id="under" inputmode="numeric" value="-110"></label>
+    </div>
+    <p class="hint">Leave a price blank if the book only offers one side.</p>
+    <div class="grid2">
+      <label for="opp">Opponent<select id="opp"><option value="">Pick a team</option></select></label>
+      <label for="ngames">Last N games<input id="ngames" inputmode="numeric" value="8"></label>
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" id="zfill" checked> Count missed games as 0 (not QBs)</label>
+      <label><input type="checkbox" id="qbskip" checked> Skip QB games under 10 attempts</label>
+      <label><input type="checkbox" id="adj" checked> Adjust for opponent defense</label>
+    </div>
+    <button class="btn" type="submit" id="go">Check prop</button>
+  </form>
+  <div id="out" class="panel" style="padding-top:0"></div>
+</section>
+
+<section class="panel" id="panel-parlay" role="tabpanel" hidden>
+  <div class="card">
+    <h2>Legs</h2>
+    <div id="legs"></div>
+    <div class="grid2">
+      <label for="sitepx">Book's parlay price<input id="sitepx" inputmode="numeric" placeholder="+485"></label>
+      <label for="boost">Profit boost %<input id="boost" inputmode="numeric" placeholder="0"></label>
+    </div>
+    <label for="stake">Stake ($)<input id="stake" inputmode="decimal" value="5"></label>
+    <button class="btn ghost" type="button" id="clearlegs">Clear all legs</button>
+    <p class="hint" id="syncnote">Legs are saved in this browser only.</p>
+  </div>
+  <div id="pout" class="panel" style="padding-top:0"></div>
+</section>
+
+<section class="panel" id="panel-inj" role="tabpanel" hidden>
+  <div class="card">
+    <h2>Find a player</h2>
+    <label for="ij-q">Player<input id="ij-q" list="ij-names" placeholder="Type a name, e.g. Jaxon Smith-Njigba"></label>
+    <datalist id="ij-names"></datalist>
+    <div id="ij-one"></div>
+  </div>
+  <div class="card">
+    <h2 id="ij-head">Injury report</h2>
+    <p class="hint" id="ij-fresh">Loading the injury report…</p>
+    <label for="ij-game">Game<select id="ij-game"><option value="">All games</option></select></label>
+    <div class="filt" id="ij-pos">
+      <button type="button" data-g="" aria-pressed="true">All</button>
+      <button type="button" data-g="QB" aria-pressed="false">QB</button>
+      <button type="button" data-g="RB" aria-pressed="false">RB</button>
+      <button type="button" data-g="WR" aria-pressed="false">WR</button>
+      <button type="button" data-g="TE" aria-pressed="false">TE</button>
+      <button type="button" data-g="OL" aria-pressed="false">O-line</button>
+      <button type="button" data-g="D" aria-pressed="false">Defense</button>
+    </div>
+    <div class="checks"><label><input type="checkbox" id="ij-key" checked> Only key players (regular snaps)</label></div>
+  </div>
+  <div id="ij-sum"></div>
+  <div class="card"><h2 id="ij-lh">Biggest injuries</h2><div id="ij-list"></div></div>
+  <div class="card" id="ij-prev" hidden></div>
+</section>
+
+<section class="panel" id="panel-ask" role="tabpanel" hidden>
+  <div class="card">
+    <h2>Ask about a bet</h2>
+    <p class="hint" id="ask-status">Add a free API key below to start.</p>
+    <div class="chat" id="chat"></div>
+    <div class="chips" id="ask-chips">
+      <button type="button">Is Kyren Williams over 74.5 rushing yards good at -115?</button>
+      <button type="button">Which leg of my open parlay is weakest?</button>
+      <button type="button">Who are the key injuries in Bills at Raiders?</button>
+      <button type="button">How is the Chiefs defense against tight ends?</button>
+    </div>
+    <form class="askbar" id="askform" autocomplete="off">
+      <label class="iconbtn" title="Attach a bet slip screenshot" aria-label="Attach screenshot">📷<input type="file" id="ask-img" accept="image/*" hidden></label>
+      <textarea id="ask-q" rows="1" placeholder="Ask about a player, a leg, or paste a slip…"></textarea>
+      <button class="btn" type="submit" id="ask-go">Ask</button>
+    </form>
+    <p class="hint" id="ask-att"></p>
+    <button class="btn ghost" type="button" id="ask-clear">New conversation</button>
+  </div>
+  <div class="card">
+    <details class="set" id="ask-set"><summary>AI settings</summary>
+      <div style="display:grid;gap:10px;margin-top:12px">
+        <label for="ai-prov">Provider<select id="ai-prov">
+          <option value="groq">Groq (free, fastest, text only)</option>
+          <option value="gemini">Google Gemini (free, reads screenshots)</option>
+          <option value="openrouter">OpenRouter (free models)</option>
+          <option value="custom">Custom (any OpenAI-compatible API)</option>
+        </select></label>
+        <label for="ai-key">API key<input id="ai-key" type="password" placeholder="Paste your key"></label>
+        <label for="ai-model">Model<input id="ai-model"></label>
+        <label for="ai-base" id="ai-base-l" hidden>API base URL<input id="ai-base" placeholder="https://…/v1"></label>
+        <p class="hint" id="ai-help"></p>
+        <p class="hint">Your key is saved only in this browser and is sent only to the provider you pick.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="panel" id="panel-log" role="tabpanel" hidden>
+  <div id="lsum" class="panel" style="padding-top:0"></div>
+  <div class="card">
+    <h2>Bets</h2>
+    <div class="filt" id="lfilt">
+      <button type="button" data-f="all" aria-pressed="true">All</button>
+      <button type="button" data-f="pending" aria-pressed="false">Open</button>
+      <button type="button" data-f="settled" aria-pressed="false">Settled</button>
+    </div>
+    <div id="bets"></div>
+    <p class="hint">After the game, enter the closing price (the price right before kickoff) and the result. Beating the closing price is the earliest sign of a real edge.</p>
+  </div>
+  <div class="card" id="bystat"></div>
+  <form class="card" id="manual" autocomplete="off">
+    <h2>Add a bet by hand</h2>
+    <label for="m-label">Bet<input id="m-label" placeholder="e.g. Bo Nix over 13.5 rushing yards"></label>
+    <div class="grid3">
+      <label for="m-odds">Price<input id="m-odds" inputmode="numeric" placeholder="-110"></label>
+      <label for="m-stake">Stake ($)<input id="m-stake" inputmode="decimal"></label>
+      <label for="m-p">Model %<input id="m-p" inputmode="decimal" placeholder="optional"></label>
+    </div>
+    <button class="btn ghost" type="submit">Add to log</button>
+    <p class="hint" id="m-msg"></p>
+  </form>
+  <form class="card" id="rulesform" autocomplete="off">
+    <h2>Your rules</h2>
+    <div class="grid2">
+      <label for="r-bank">Starting bankroll ($)<input id="r-bank" inputmode="decimal"></label>
+      <label for="r-mode">Bet sizing<select id="r-mode"><option value="flat">Flat % of bankroll</option><option value="kelly">Quarter Kelly (by edge)</option></select></label>
+    </div>
+    <div class="grid3">
+      <label for="r-flat">Flat bet %<input id="r-flat" inputmode="decimal"></label>
+      <label for="r-cap">Kelly cap %<input id="r-cap" inputmode="decimal"></label>
+      <label for="r-edge">Min edge %<input id="r-edge" inputmode="decimal"></label>
+    </div>
+    <div class="grid2">
+      <label for="r-games">Min games<input id="r-games" inputmode="numeric"></label>
+      <label for="r-stop">Pause after losing %<input id="r-stop" inputmode="decimal"></label>
+    </div>
+    <p class="hint">Changes save as you leave each field. Bet sizes use your current bankroll (starting bankroll plus settled profit).</p>
+    <p class="hint" id="logsync">Your log is saved in this browser only.</p>
+    <div class="row"><button class="btn ghost" type="button" id="bk-csv">Export CSV</button><button class="btn ghost" type="button" id="bk-out">Back up</button></div>
+    <label class="btn ghost" style="text-align:center">Restore backup<input type="file" id="bk-in" accept=".json,application/json" hidden></label>
+    <p class="hint" id="bk-msg">Back up now and then: clearing your browser data erases the log.</p>
+  </form>
+</section>
+</div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const C={season:0,week:1,team:2,opp:3,comp:4,att:5,pyd:6,ptd:7,int:8,sk:9,car:10,ryd:11,rtd:12,tgt:13,rec:14,cyd:15,ctd:16,air:17};
+const STATS={
+ "Receiving Yards":{f:g=>g[C.cyd],k:"rec"},"Receptions":{f:g=>g[C.rec],k:"rec"},"Targets":{f:g=>g[C.tgt],k:"rec"},
+ "Receiving TDs":{f:g=>g[C.ctd],k:"rec",td:1},"Anytime TD (rush + rec)":{f:g=>g[C.rtd]+g[C.ctd],k:"rush",td:1},
+ "Rushing Yards":{f:g=>g[C.ryd],k:"rush"},"Rush Attempts":{f:g=>g[C.car],k:"rush"},"Rushing TDs":{f:g=>g[C.rtd],k:"rush",td:1},
+ "Rush + Rec Yards":{f:g=>g[C.ryd]+g[C.cyd],k:"rush"},
+ "Passing Yards":{f:g=>g[C.pyd],k:"pass"},"Pass Attempts":{f:g=>g[C.att],k:"pass"},"Pass Completions":{f:g=>g[C.comp],k:"pass"},
+ "Passing TDs":{f:g=>g[C.ptd],k:"pass",td:1},"Interceptions":{f:g=>g[C.int],k:"pass"},"Pass + Rush Yards":{f:g=>g[C.pyd]+g[C.ryd],k:"pass"}
+};
+let D=null, byName=new Map(), teamWeeks=new Map(), last=null;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let legs=store.get("pf_legs",[]);
+// Parlay legs persist to the viewer's private db document when available; browser storage is the fallback.
+let legsRef=null,saving=Promise.resolve(),syncState="local";
+function saveLegs(){
+  store.set("pf_legs",legs);
+  if(!legsRef){setSync();return}
+  const body={legs:JSON.parse(JSON.stringify(legs)),at:Date.now()};
+  saving=saving.then(()=>legsRef.set(body)).then(()=>{syncState="account";setSync()})
+    .catch(()=>{syncState="local";setSync()});
+}
+function setSync(){const el=$("syncnote");if(el)el.textContent=syncState==="account"?"Legs are saved to your Claude account, so they stay after refreshing and on other devices.":"Legs are saved in this browser only.";}
+// Standalone build: parlay legs and the bet log are saved in this browser.
+
+// ---------- math
+const erf=x=>{const t=1/(1+.3275911*Math.abs(x));const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-.284496736)*t+.254829592)*t*Math.exp(-x*x);return x>=0?y:-y};
+const ncdf=x=>.5*(1+erf(x/Math.SQRT2));
+const dec=o=>o>0?1+o/100:1+100/Math.abs(o);
+const imp=o=>1/dec(o);
+const amer=d=>d>=2?Math.round((d-1)*100):Math.round(-100/(d-1));
+const fmtA=a=>(a>0?"+":"")+a;
+const fair=p=>{p=Math.min(Math.max(p,.001),.999);return fmtA(p>=.5?Math.round(-100*p/(1-p)):Math.round(100*(1-p)/p))};
+const pct=(x,d=0)=>(x*100).toFixed(d)+"%";
+function normProbs(m,s,line){if(Math.abs(line-Math.round(line))<1e-9){const up=ncdf((line+.5-m)/s),lo=ncdf((line-.5-m)/s);return[1-up,up-lo,lo]}const p=1-ncdf((line-m)/s);return[p,0,1-p]}
+function poisProbs(m,line){m=Math.max(m,.01);const k=Math.floor(line);let cdf=0,term=Math.exp(-m);for(let i=0;i<=k;i++){if(i>0)term*=m/i;cdf+=term}
+ if(Math.abs(line-k)<1e-9){const pk=term;return[1-cdf,pk,cdf-pk]}return[1-cdf,0,cdf]}
+const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
+const sd=a=>{if(a.length<2)return 0;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))};
+const median=a=>{const b=[...a].sort((x,y)=>x-y),n=b.length;return n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2};
+const parseOdds=t=>{t=(t||"").trim().replace("+","");if(!t)return null;const v=Number(t);if(!isFinite(v)||Math.abs(v)<100)throw new Error("Prices look like -115 or +120.");return v};
+
+// ---------- data
+function index(){
+  byName.clear();teamWeeks.clear();
+  for(const p of D.players){const k=p.n.toLowerCase();const prev=byName.get(k);if(!prev||p.g.length>prev.g.length)byName.set(k,p)}
+  for(const[s,w,t,o]of D.sched){const k=s+"|"+t;if(!teamWeeks.has(k))teamWeeks.set(k,new Map());teamWeeks.get(k).set(w,o)}
+  $("players").innerHTML=D.players.map(p=>`<option value="${p.n.replace(/"/g,"&quot;")}">${p.p}</option>`).join("");
+  const teams=[...new Set(D.sched.filter(r=>r[0]===D.latest.season).map(r=>r[2]))].sort();
+  $("opp").innerHTML='<option value="">Pick a team</option>'+teams.map(t=>`<option>${t}</option>`).join("");
+  const u=new Date(D.updated.replace("Z",":00Z"));
+  $("fresh").textContent=`Stats through ${D.latest.season} Week ${D.latest.week} · updated ${u.toLocaleDateString(undefined,{month:"short",day:"numeric"})}`;
+}
+function gamesFor(p,opts){
+  let g=p.g.map(x=>x.slice());
+  if(p.p==="QB"){if(opts.qbskip)g=g.filter(x=>x[C.att]>=10)}
+  else if(opts.zfill){
+    const have=new Set(g.map(x=>x[0]+"|"+x[1])),spans=new Map();
+    for(const x of g){const k=x[0]+"|"+x[2];const s=spans.get(k)||[x[1],x[1]];spans.set(k,[Math.min(s[0],x[1]),Math.max(s[1],x[1])])}
+    for(const[k,[lo,hi0]]of spans){const[season,team]=k.split("|");const wk=teamWeeks.get(k);if(!wk)continue;
+      let hi=hi0;if(+season===D.latest.season)hi=Math.max(hi,...wk.keys());
+      for(const[w,o]of wk){if(w>=lo&&w<=hi&&!have.has(season+"|"+w)){const z=new Array(18).fill(0);z[0]=+season;z[1]=w;z[2]=team;z[3]=o;z.zero=1;g.push(z)}}}
+  }
+  g.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);return g;
+}
+const allowCache=new Map();
+function allowed(key,fn,win,pos){ // {team: per-game avg over that defense's last win games}
+  const ck=key+"|"+win+"|"+(pos||"");if(allowCache.has(ck))return allowCache.get(ck);
+  const per=new Map();
+  for(const p of D.players){if(pos&&p.p!==pos)continue;
+    for(const g of p.g){const t=g[C.opp];if(!per.has(t))per.set(t,new Map());const m=per.get(t),k=g[0]*100+g[1];m.set(k,(m.get(k)||0)+fn(g))}}
+  // include weeks a defense played with nothing recorded (count as 0)
+  for(const[s,w,t,o]of D.sched){if(!per.has(o))per.set(o,new Map());const m=per.get(o),k=s*100+w;if(!m.has(k))m.set(k,0)}
+  const out=new Map();
+  for(const[t,m]of per){const ks=[...m.keys()].sort((a,b)=>a-b).slice(-win);if(ks.length)out.set(t,ks.reduce((s,k)=>s+m.get(k),0)/ks.length)}
+  allowCache.set(ck,out);return out;
+}
+function ratioAllowed(key,num,den,win,pos){const a=allowed(key+"n",num,win,pos),b=allowed(key+"d",den,win,pos),o=new Map();for(const[t,v]of a){const d=b.get(t);if(d)o.set(t,v/d)}return o}
+function rankOf(map,team,lowIsGood=true){const v=map.get(team);if(v==null)return null;const vals=[...map.values()];const lg=mean(vals);
+  const rank=1+vals.filter(x=>lowIsGood?x<v:x>v).length;return{v,lg,rank,n:vals.length}}
+function oppFactor(kind,opp,win){
+  const keys=kind==="rush"?["ryd"]:kind==="pass"?["pyd"]:["pyd"];
+  const fs=keys.map(k=>{const r=rankOf(allowed(k,g=>g[C[k]],win),opp);return r&&r.lg?r.v/r.lg:null}).filter(x=>x);
+  if(!fs.length)return 1;return Math.min(1.15,Math.max(.85,1+.5*(mean(fs)-1)));
+}
+
+// ---------- check
+function check(e){
+  e&&e.preventDefault();const out=$("out");
+  if(!D){out.innerHTML='<div class="card empty">Stats are still loading.</div>';return}
+  const name=$("player").value.trim().toLowerCase();
+  let p=byName.get(name);if(!p){const hits=D.players.filter(x=>x.n.toLowerCase().includes(name));p=name&&hits.sort((a,b)=>b.g.length-a.g.length)[0]}
+  if(!p){out.innerHTML='<div class="card empty">No player matches that name. Pick one from the suggestions.</div>';return}
+  $("player").value=p.n;
+  const stat=$("stat").value,S=STATS[stat];let line,o,u;
+  try{line=parseFloat($("line").value);if(!isFinite(line))throw new Error("Enter the book's line, like 13.5.");o=parseOdds($("over").value);u=parseOdds($("under").value);
+    if(o==null&&u==null)throw new Error("Enter at least one price.")}catch(err){out.innerHTML=`<div class="card empty">${err.message}</div>`;return}
+  const n=parseInt($("ngames").value)||8,opp=$("opp").value,win=8;
+  const opts={zfill:$("zfill").checked,qbskip:$("qbskip").checked};
+  const all=gamesFor(p,opts),sel=all.slice(-n);
+  if(sel.length<2){out.innerHTML='<div class="card empty">Not enough games for this player yet.</div>';return}
+  const vals=sel.map(S.f),f=(opp&&$("adj").checked)?oppFactor(S.k,opp,win):1;
+  const m0=mean(vals),s0=sd(vals),m=m0*f,s=Math.max(s0*f,.25*m,.3);
+  const adj=vals.map(v=>v*f),N=adj.length;
+  const emp=[adj.filter(v=>v>line).length/N,adj.filter(v=>v===line).length/N,adj.filter(v=>v<line).length/N];
+  const mod=S.td?poisProbs(m,line):normProbs(m,s,line);
+  const [po,pp,pu]=emp.map((x,i)=>(x+mod[i])/2);
+  const sides=[];
+  if(o!=null)sides.push({side:"Over",p:pp<1?po/(1-pp):0,odds:o});
+  if(u!=null)sides.push({side:"Under",p:pp<1?pu/(1-pp):0,odds:u});
+  sides.forEach(x=>{x.need=imp(x.odds);x.edge=x.p-x.need;x.ev=x.p*(dec(x.odds)-1)-(1-x.p)});
+  const best=sides.reduce((a,b)=>b.edge>a.edge?b:a);
+  const cls=best.edge>=.025?"good":best.edge>=.005?"warn":"bad";
+  const head=cls==="good"?`Value on the ${best.side.toLowerCase()}`:cls==="warn"?`Slight value on the ${best.side.toLowerCase()}`:"No value at these prices";
+  const team=sel[sel.length-1][C.team];
+  last={player:p.n,team,opp,stat,line,sides,pos:p.p,N};
+  const overs=vals.filter(v=>v>line).length,unders=vals.filter(v=>v<line).length;
+  const mx=Math.max(line*1.4,...vals,1);
+  const recent=all.map(S.f),avgN=k=>recent.length?mean(recent.slice(-k)):0;
+  const notes=[];
+  if(f!==1)notes.push(`Projection ${m.toFixed(1)} is his average ${m0.toFixed(1)} × ${f.toFixed(2)} for the ${opp} defense.`);
+  if(N<8)notes.push({w:1,t:`Only ${N} games in the sample, so treat the numbers as rough.`});
+  if(best.edge>.10)notes.push({w:1,t:"An edge over 10% usually means the model is missing something (injury, role change, small sample). Check before betting."});
+  if(sel.some(g=>g.zero))notes.push(`${sel.filter(g=>g.zero).length} game(s) counted as 0 where he had no recorded stats.`);
+  injNotes(p,team,opp).forEach(x=>notes.push(x));
+  const def=matchup(stat,p,opp,win,sel);
+  out.innerHTML=`
+  <div class="verdict v-${cls}"><b>${head}</b><span>${best.side} ${line} at ${fmtA(best.odds)}: model ${pct(best.p)} vs ${pct(best.need)} needed to break even (edge ${best.edge>=0?"+":""}${pct(best.edge,1)}).</span></div>
+  <div class="card"><h2>Price check</h2><div class="scroll"><table><thead><tr><th>Bet</th><th class="num">Price</th><th class="num">Needs</th><th class="num">Model</th><th class="num">Fair</th><th class="num">Edge</th></tr></thead><tbody>
+   ${sides.map(x=>`<tr><td>${x.side} ${line}</td><td class="num">${fmtA(x.odds)}</td><td class="num">${pct(x.need,1)}</td><td class="num">${pct(x.p,1)}</td><td class="num">${fair(x.p)}</td><td class="num"><span class="pill ${x.edge>=.025?"p-good":x.edge>=.005?"p-warn":"p-bad"}">${x.edge>=0?"+":""}${pct(x.edge,1)}</span></td></tr>`).join("")}
+  </tbody></table></div>
+   <div class="row">${sides.map(x=>`<button class="btn ghost" type="button" data-add="${x.side}">+ ${x.side} to parlay</button>`).join("")}</div>
+   <p class="hint" id="addmsg"></p></div>
+  <div class="card"><h2>${p.n} · ${p.p} · ${stat}</h2>
+   <div class="stats">
+    <div class="stat"><small>Avg (${N}g)</small><strong>${m0.toFixed(1)}</strong></div>
+    <div class="stat"><small>Median</small><strong>${median(vals).toFixed(1)}</strong></div>
+    <div class="stat"><small>Over ${line}</small><strong>${overs}/${N}</strong></div>
+    <div class="stat"><small>Under</small><strong>${unders}/${N}</strong></div>
+    <div class="stat"><small>Last 3</small><strong>${avgN(3).toFixed(1)}</strong></div>
+    <div class="stat"><small>Last 5</small><strong>${avgN(5).toFixed(1)}</strong></div>
+    <div class="stat"><small>Last 10</small><strong>${avgN(10).toFixed(1)}</strong></div>
+    <div class="stat"><small>Range</small><strong>${Math.min(...vals)}–${Math.max(...vals)}</strong></div>
+   </div>
+   <div class="bars" aria-label="Last ${N} games against the line">${vals.map((v,i)=>`<div class="b ${sel[i].zero?"z":v>line?"o":""}" style="height:${Math.max(2,v/mx*100)}%" title="${sel[i][0]} wk ${sel[i][1]}: ${v}"></div>`).join("")}<div class="ln" style="bottom:${line/mx*80}px"></div></div>
+   <p class="hint">Green bars beat ${line}; the dashed line is the line. Oldest on the left.</p>
+   ${notes.length?`<ul class="notes">${notes.map(x=>typeof x==="string"?`<li>${x}</li>`:`<li class="w">${x.t}</li>`).join("")}</ul>`:""}
+  </div>
+  ${logCard()}
+  ${def}
+  <div class="card"><h2>Game log</h2><div class="scroll"><table><thead><tr><th>Season</th><th>Wk</th><th>Team</th><th>Opp</th><th class="num">${stat}</th><th>vs ${line}</th></tr></thead><tbody>
+   ${sel.slice().reverse().map((g,i)=>{const v=vals[vals.length-1-i];const r=v>line?'<span class="pill p-good">Over</span>':v<line?'<span class="pill p-bad">Under</span>':'<span class="pill p-mute">Push</span>';
+     return`<tr><td>${g[0]}</td><td>${g[1]}</td><td>${g[2]}</td><td>${g[3]}</td><td class="num">${v}${g.zero?" ·0-fill":""}</td><td>${r}</td></tr>`}).join("")}
+  </tbody></table></div></div>`;
+  out.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=>addLeg(b.dataset.add)));
+  wireLogCard();
+  out.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+}
+function matchup(stat,p,opp,win,sel){
+  const S=STATS[stat],rows=[];const pos=["WR","TE","RB"].includes(p.p)?p.p:"WR";
+  if(opp){
+    const add=(label,map,lowGood=true,fmt=v=>v.toFixed(1))=>{const r=rankOf(map,opp,lowGood);if(!r)return;
+      const tough=r.rank<=r.n/4,soft=r.rank>r.n*3/4;
+      rows.push(`<tr><td>${label}</td><td class="num">${fmt(r.v)}</td><td class="num">${fmt(r.lg)}</td><td class="num">${r.rank}/${r.n}</td><td><span class="pill ${tough?"p-bad":soft?"p-good":"p-mute"}">${tough?"Tough":soft?"Soft":"Avg"}</span></td></tr>`)};
+    if(S.k==="pass"){
+      add("Pass yds allowed/g",allowed("pyd",g=>g[C.pyd],win));
+      add("Yds per attempt",ratioAllowed("ypa",g=>g[C.pyd],g=>g[C.att],win),true,v=>v.toFixed(2));
+      add("Pass att faced/g",allowed("att",g=>g[C.att],win));
+      add("Sack rate",ratioAllowed("sk",g=>g[C.sk],g=>g[C.att]+g[C.sk],win),false,v=>pct(v,1));
+    }else if(S.k==="rush"){
+      add("Rush yds allowed/g",allowed("ryd",g=>g[C.ryd],win));
+      add("Yds per carry",ratioAllowed("ypc",g=>g[C.ryd],g=>g[C.car],win),true,v=>v.toFixed(2));
+      add("Rush att faced/g",allowed("car",g=>g[C.car],win));
+      if(stat.includes("Rec")||stat.includes("TD"))add(`Rec yds to ${pos}s/g`,allowed("cyd",g=>g[C.cyd],win,pos));
+    }else{
+      add(`Targets to ${pos}s/g`,allowed("tgt",g=>g[C.tgt],win,pos));
+      add(`Catches to ${pos}s/g`,allowed("rec",g=>g[C.rec],win,pos));
+      add(`Rec yds to ${pos}s/g`,allowed("cyd",g=>g[C.cyd],win,pos));
+      add(`Yds per catch to ${pos}s`,ratioAllowed("ypr"+pos,g=>g[C.cyd],g=>g[C.rec],win,pos),true,v=>v.toFixed(1));
+      for(const o of ["WR","TE","RB"].filter(x=>x!==pos))add(`Targets to ${o}s/g`,allowed("tgt",g=>g[C.tgt],win,o));
+    }
+  }
+  // role on his own team over the same games
+  const keys=new Set(sel.filter(g=>!g.zero).map(g=>g[0]+"|"+g[1]+"|"+g[2]));const tm={tgt:0,car:0,air:0};
+  for(const q of D.players)for(const g of q.g)if(keys.has(g[0]+"|"+g[1]+"|"+g[2])){tm.tgt+=g[C.tgt];tm.car+=g[C.car]}
+  const me={tgt:0,car:0,air:0,rec:0,cyd:0,ryd:0};for(const g of sel)for(const k in me)me[k]+=g[C[k]];
+  const role=[];const n=sel.length;
+  if(S.k==="rec"||stat==="Rush + Rec Yards"||stat.includes("Anytime")){if(tm.tgt)role.push(["Target share",pct(me.tgt/tm.tgt,1)]);role.push(["Targets/g",(me.tgt/n).toFixed(1)]);
+    if(me.tgt&&me.air){const ad=me.air/me.tgt;role.push(["Avg depth of target",ad.toFixed(1)+(ad<8?" · short/slot-type":ad<12?" · intermediate":" · deep")])}
+    if(me.tgt)role.push(["Catch rate",pct(me.rec/me.tgt)])}
+  if(S.k==="rush"){if(tm.car)role.push(["Carry share",pct(me.car/tm.car,1)]);role.push(["Carries/g",(me.car/n).toFixed(1)]);if(me.car)role.push(["Yds per carry",(me.ryd/me.car).toFixed(2)])}
+  return `${opp?`<div class="card"><h2>${opp} defense · last ${win} games</h2><div class="scroll"><table><thead><tr><th>Stat</th><th class="num">${opp}</th><th class="num">League</th><th class="num">Rank</th><th></th></tr></thead><tbody>${rows.join("")}</tbody></table></div><p class="hint">Rank 1 is the toughest defense. Soft matchups favor overs.</p></div>`
+   :'<div class="card empty">Pick an opponent to see their defense ranks.</div>'}
+   ${role.length?`<div class="card"><h2>His role · same games</h2><div class="scroll"><table><tbody>${role.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td></tr>`).join("")}</tbody></table></div></div>`:""}`;
+}
+
+// ---------- parlay
+function addLeg(side){
+  if(!last)return;const s=last.sides.find(x=>x.side===side);if(!s)return;
+  const label=`${last.player} ${side} ${last.line} ${last.stat}`;
+  if(legs.some(l=>l.label===label)){$("addmsg").textContent="That leg is already in the parlay.";return}
+  legs.push({label,odds:s.odds,p:s.p,player:last.player,team:last.team,opp:last.opp});
+  saveLegs();$("addmsg").textContent=`Added. ${legs.length} leg${legs.length>1?"s":""} in the parlay.`;renderParlay();
+}
+function renderParlay(){
+  $("legcount").textContent=legs.length;
+  $("legs").innerHTML=legs.length?legs.map((l,i)=>`<div class="leg"><span class="t">${l.label}</span><span class="m mono">${fmtA(l.odds)} · model ${pct(l.p)} · edge ${(l.p-imp(l.odds)>=0?"+":"")+pct(l.p-imp(l.odds),1)}</span><button type="button" data-rm="${i}" aria-label="Remove leg">Remove</button></div>`).join("")
+    :'<p class="empty">No legs yet. Check a prop, then tap "+ Over to parlay" or "+ Under to parlay".</p>';
+  $("legs").querySelectorAll("[data-rm]").forEach(b=>b.addEventListener("click",()=>{legs.splice(+b.dataset.rm,1);saveLegs();renderParlay()}));
+  const out=$("pout");if(!legs.length){out.innerHTML="";return}
+  let Dm=1,P=1;legs.forEach(l=>{Dm*=dec(l.odds);P*=l.p});
+  let site=null;try{site=parseOdds($("sitepx").value)}catch(e){}
+  const boost=(parseFloat($("boost").value)||0)/100,stake=parseFloat($("stake").value)||0;
+  const Dbook=site!=null?dec(site):Dm,Dpay=1+(Dbook-1)*(1+boost);
+  const ev=P*Dpay-1,need=1/Dpay,cls=P-need>=.025?"good":P-need>=.005?"warn":"bad";
+  const linked=[];for(let i=0;i<legs.length;i++)for(let j=i+1;j<legs.length;j++){const a=legs[i],b=legs[j];
+    if(a.player===b.player||a.team===b.team||(a.opp&&a.opp===b.team)||(b.opp&&b.opp===a.team))linked.push(`#${i+1} & #${j+1}`)}
+  out.innerHTML=`<div class="verdict v-${cls}"><b>${cls==="good"?"Good value":cls==="warn"?"Thin value":"No value"} · ${fmtA(amer(Dpay))}</b>
+   <span>Model chance all ${legs.length} hit: ${pct(P,1)} (about 1 in ${(1/P).toFixed(1)}). This price needs ${pct(need,1)}.</span></div>
+  <div class="card"><h2>The slip</h2><div class="stats">
+   <div class="stat"><small>Legs multiplied</small><strong>${fmtA(amer(Dm))}</strong></div>
+   <div class="stat"><small>Book price</small><strong>${site!=null?fmtA(site):"—"}</strong></div>
+   <div class="stat"><small>With boost</small><strong>${fmtA(amer(Dpay))}</strong></div>
+   <div class="stat"><small>$${stake} returns</small><strong>$${(stake*Dpay).toFixed(2)}</strong></div></div>
+   <ul class="notes">
+    <li>Expected value: ${ev>=0?"+":""}${pct(ev,1)} per dollar, about ${ev>=0?"+":"-"}$${Math.abs(stake*ev).toFixed(2)} per $${stake} bet on average.</li>
+    ${site!=null?`<li>The book pays ${site<amer(Dm)?`less than the multiplied legs (${fmtA(amer(Dm))}). It is charging extra because it thinks these legs move together.`:"at least as much as the multiplied legs."}</li>`:'<li>Enter the book\'s parlay price above to compare it to the legs multiplied.</li>'}
+    ${linked.length?`<li class="w">Linked legs: ${linked.join(", ")} come from the same player or game. Their results move together, so the model's chance is only a rough guide.</li>`:""}
+    ${legs.some(l=>l.p<imp(l.odds))?`<li class="w">Leg ${legs.map((l,i)=>l.p<imp(l.odds)?"#"+(i+1):"").filter(Boolean).join(", ")} has negative edge on its own. Consider dropping it.</li>`:""}
+    ${legs.length>=5?'<li class="w">Five or more legs is a long shot. Results swing a lot.</li>':""}
+   </ul>
+   <button class="btn ghost" type="button" id="logparlay">Log this parlay ($${stake} at ${fmtA(amer(Dpay))})</button>
+   <p class="hint" id="plogmsg"></p></div>`;
+  $("logparlay").addEventListener("click",()=>{
+    if(!(stake>0)){$("plogmsg").textContent="Enter a stake first.";return}
+    addBet({label:`${legs.length}-leg parlay: `+legs.map(l=>l.label).join("; "),stat:"Parlay",odds:amer(Dpay),p:P,stake});
+    $("plogmsg").textContent="Logged. Find it in the Bet log tab.";
+  });
+}
+
+// ---------- bet log
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const RDEF={bank:100,mode:"flat",flat:1,cap:2,edge:3,games:8,stop:30};
+let R={...RDEF,...store.get("pf_rules",{})};
+let bets=store.get("pf_bets",[]);
+let betCol=null,rulesRef=null,logState="local",lfilt="all";
+const writeQ=new Map();
+function q(id,fn){const p=(writeQ.get(id)||Promise.resolve()).then(fn).then(()=>{logState="account";setLogSync()},e=>{logState=e&&e.code==="quota_exceeded"?"full":"local";setLogSync()});writeQ.set(id,p);return p}
+function setLogSync(){const el=$("logsync");if(!el)return;el.textContent=logState==="account"?"Your log and rules are saved to your Claude account, so they're on every device.":logState==="full"?"Storage is full, so new bets are only saved in this browser. Remove old bets to free space.":"Your log is saved in this browser only."}
+function persistLocal(){store.set("pf_bets",bets);store.set("pf_rules",R)}
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function addBet(b){
+  const bet={id:newId(),at:Date.now(),label:b.label,stat:b.stat||"Other",side:b.side||"",odds:b.odds,p:b.p??null,stake:Math.round(b.stake*100)/100,close:null,result:"pending"};
+  bets.push(bet);persistLocal();renderLog();
+  if(betCol){const{id,...body}=bet;q(id,()=>betCol.doc(id).set(body))}
+}
+function patchBet(id,patch){const b=bets.find(x=>x.id===id);if(!b)return;Object.assign(b,patch);persistLocal();renderLog();
+  if(betCol)q(id,()=>betCol.doc(id).update(patch))}
+function removeBet(id){bets=bets.filter(x=>x.id!==id);persistLocal();renderLog();if(betCol)q(id,()=>betCol.doc(id).delete())}
+function saveRules(){persistLocal();renderLog();if(rulesRef)q("rules",()=>rulesRef.set({rules:{...R},at:Date.now()}))}
+async function initLog(db,uid,user){
+  try{
+    rulesRef=db.doc("data/users/"+uid+"/betlog");
+    const col=rulesRef.collection("bets");
+    const [rs,bs]=await Promise.all([rulesRef.get(),col.get()]);
+    if(rs.exists&&rs.data().rules)R={...RDEF,...rs.data().rules};
+    else await rulesRef.set({rules:{...R},at:Date.now()});
+    {const have=new Set(bs.docs.map(d=>d.id));for(const b of bets){if(have.has(b.id))continue;const{id,...body}=b;await col.doc(id).set(body)}}
+    betCol=col;logState="account";
+    try{if(user&&await user.isOwner())await importInbox(db,col,[...bs.docs.map(d=>({id:d.id,...d.data()})),...bets])}catch(e){}
+    col.orderBy("at").onSnapshot(s=>{bets=s.docs.map(d=>({id:d.id,...d.data()}));persistLocal();renderLog();setLogSync()},
+      ()=>{logState="local";setLogSync()});
+    fillRules();renderLog();setLogSync();
+  }catch(e){betCol=null;rulesRef=null;logState="local";setLogSync()}
+}
+// Bets Claude adds for the owner land in a shared "inbox" collection; the owner's page moves them into the private log.
+async function importInbox(db,col,existing){
+  const inbox=db.collection("inbox"),snap=await inbox.get();let n=0;
+  for(const d of snap.docs){const b=d.data();if(!b||!b.label||!isFinite(b.odds)||!(b.stake>0))continue;
+    const dup=existing.some(x=>x.id===d.id||(x.odds===b.odds&&x.stake===b.stake&&String(x.label).slice(0,12)===String(b.label).slice(0,12)));
+    if(!dup){await col.doc(d.id).set({at:b.at||Date.now(),label:String(b.label),stat:b.stat||"Other",side:b.side||"",odds:b.odds,p:b.p??null,stake:b.stake,close:b.close??null,result:b.result||"pending"});n++}
+    await inbox.doc(d.id).delete()}
+  if(n){const el=$("logsync");setTimeout(()=>{if(el)el.textContent=`Added ${n} bet${n>1?"s":""} from Claude to your log.`},50)}
+}
+const profit=b=>b.result==="win"?b.stake*(dec(b.odds)-1):b.result==="loss"?-b.stake:0;
+const settled=b=>b.result==="win"||b.result==="loss"||b.result==="push";
+const clv=b=>b.close!=null&&b.close!==""?imp(b.close)-imp(b.odds):null;
+function bankNow(){return R.bank+bets.reduce((s,b)=>s+profit(b),0)}
+function stopHit(){return bankNow()<=R.bank*(1-R.stop/100)}
+function suggest(p,odds){const br=Math.max(bankNow(),0);let f;
+  if(R.mode==="kelly"){const b=dec(odds)-1;f=Math.max(0,(b*p-(1-p))/b)*.25;f=Math.min(f,R.cap/100)}else f=R.flat/100;
+  return Math.round(br*f*100)/100}
+function ruleChecks(x,N){return[
+  {ok:x.edge>=R.edge/100,t:`Edge ${R.edge}%+`},
+  {ok:x.edge<=.10,t:"Edge under 10%"},
+  {ok:N>=R.games,t:`${R.games}+ games`},
+  {ok:!stopHit(),t:"Bankroll above pause line"}]}
+function logCard(){
+  if(!last)return"";const s0=last.sides.reduce((a,b)=>b.edge>a.edge?b:a);
+  const checks=ruleChecks(s0,last.N),pass=checks.every(c=>c.ok);
+  return `<div class="card"><h2>Log this bet</h2>
+   <div class="rules">${checks.map(c=>`<span class="pill ${c.ok?"p-good":"p-bad"}">${c.ok?"✓":"✗"} ${c.t}</span>`).join("")}<span class="pill p-mute">Check the injury report</span></div>
+   <p class="hint">${pass?"This bet passes your rules.":"This bet breaks at least one of your rules. A mechanical system skips it."}</p>
+   <div class="grid3">
+    <label for="lg-side">Side<select id="lg-side">${last.sides.map(x=>`<option${x===s0?" selected":""}>${x.side}</option>`).join("")}</select></label>
+    <label for="lg-odds">Price you got<input id="lg-odds" inputmode="numeric" value="${fmtA(s0.odds)}"></label>
+    <label for="lg-stake">Stake ($)<input id="lg-stake" inputmode="decimal" value="${suggest(s0.p,s0.odds).toFixed(2)}"></label>
+   </div>
+   <p class="hint" id="lg-why"></p>
+   <button class="btn ghost" type="button" id="lg-go">Log bet</button>
+   <p class="hint" id="lg-msg"></p></div>`;
+}
+function wireLogCard(){
+  const sel=$("lg-side");if(!sel)return;
+  const cur=()=>last.sides.find(x=>x.side===sel.value);
+  const why=()=>{const x=cur();$("lg-why").textContent=R.mode==="kelly"?`Quarter Kelly on a ${pct(x.p,1)} chance at ${fmtA(x.odds)}, capped at ${R.cap}% of your $${bankNow().toFixed(0)} bankroll.`:`${R.flat}% of your current $${bankNow().toFixed(0)} bankroll.`};
+  sel.addEventListener("change",()=>{const x=cur();$("lg-odds").value=fmtA(x.odds);$("lg-stake").value=suggest(x.p,x.odds).toFixed(2);why()});
+  why();
+  $("lg-go").addEventListener("click",()=>{
+    const x=cur();let o;try{o=parseOdds($("lg-odds").value)}catch(e){$("lg-msg").textContent=e.message;return}
+    const st=parseFloat($("lg-stake").value);if(o==null||!(st>0)){$("lg-msg").textContent="Enter the price and a stake.";return}
+    addBet({label:`${last.player} ${x.side} ${last.line} ${last.stat}`,stat:last.stat,side:x.side,odds:o,p:x.p,stake:st});
+    $("lg-msg").textContent="Logged. Add the closing price and result in the Bet log tab after the game.";
+  });
+}
+function fillRules(){$("r-bank").value=R.bank;$("r-mode").value=R.mode;$("r-flat").value=R.flat;$("r-cap").value=R.cap;$("r-edge").value=R.edge;$("r-games").value=R.games;$("r-stop").value=R.stop}
+function readRules(){const n=(id,d)=>{const v=parseFloat($(id).value);return isFinite(v)&&v>=0?v:d};
+  R={bank:n("r-bank",R.bank),mode:$("r-mode").value,flat:n("r-flat",R.flat),cap:n("r-cap",R.cap),edge:n("r-edge",R.edge),games:Math.round(n("r-games",R.games)),stop:n("r-stop",R.stop)};saveRules()}
+const money=v=>(v<0?"-":"")+"$"+Math.abs(v).toFixed(2);
+const sgn=(v,cls=true)=>`<span class="${cls?(v>0?"pos":v<0?"neg":""):""}">${v>0?"+":""}`;
+function renderLog(){
+  $("logcount").textContent=bets.filter(b=>b.result==="pending").length;
+  const S=bets.filter(settled),W=S.filter(b=>b.result==="win").length,L=S.filter(b=>b.result==="loss").length,P=S.length-W-L;
+  const staked=S.reduce((s,b)=>s+b.stake,0),pl=S.reduce((s,b)=>s+profit(b),0),roi=staked?pl/staked:0;
+  const C2=bets.map(clv).filter(v=>v!=null),avgClv=C2.length?mean(C2):null,beat=C2.filter(v=>v>0).length;
+  const E=bets.filter(b=>b.p!=null).map(b=>b.p-imp(b.odds)),avgE=E.length?mean(E):null;
+  let peak=R.bank,run=R.bank,dd=0;for(const b of bets){run+=profit(b);peak=Math.max(peak,run);dd=Math.max(dd,peak?(peak-run)/peak:0)}
+  const now=bankNow(),stop=stopHit();
+  const cls=stop?"bad":avgClv==null?"warn":avgClv>0?"good":"bad";
+  const head=stop?"Pause: bankroll hit your stop line":!bets.length?"No bets logged yet":avgClv==null?"Add closing prices to judge your edge":avgClv>0?"You're beating the closing line":"You're not beating the closing line yet";
+  const sub=stop?`Bankroll is ${money(now)}, down more than ${R.stop}% from ${money(R.bank)}. Step back and review before betting again.`
+    :!bets.length?"Log a bet from Prop check or the Parlay tab, or add one by hand below."
+    :`${S.length} settled bet${S.length===1?"":"s"}. ${S.length<200?"Win/loss results stay mostly noise for the first few hundred bets, so the closing-line number matters more.":"That's enough bets for results to start meaning something."}`;
+  $("lsum").innerHTML=`<div class="verdict v-${cls}"><b>${head}</b><span>${sub}</span></div>
+  <div class="card"><h2>Scorecard</h2><div class="stats">
+   <div class="stat"><small>Bankroll</small><strong>${money(now)}</strong></div>
+   <div class="stat"><small>Profit</small><strong>${sgn(pl)}${money(pl)}</span></strong></div>
+   <div class="stat"><small>ROI</small><strong>${sgn(roi)}${pct(roi,1)}</span></strong></div>
+   <div class="stat"><small>Record</small><strong>${W}-${L}${P?"-"+P:""}</strong></div>
+   <div class="stat"><small>Avg CLV</small><strong>${avgClv==null?"—":sgn(avgClv)+(avgClv*100).toFixed(1)+" pts</span>"}</strong></div>
+   <div class="stat"><small>Beat close</small><strong>${C2.length?beat+"/"+C2.length:"—"}</strong></div>
+   <div class="stat"><small>Avg edge</small><strong>${avgE==null?"—":sgn(avgE,false)+pct(avgE,1)+"</span>"}</strong></div>
+   <div class="stat"><small>Max drop</small><strong>${pct(dd,1)}</strong></div>
+  </div><p class="hint">CLV is how many percentage points better your price was than the closing price. Positive means the market moved your way after you bet.</p></div>`;
+  const list=bets.filter(b=>lfilt==="all"||(lfilt==="pending"?b.result==="pending":settled(b))).slice().reverse();
+  $("bets").innerHTML=list.length?list.map(b=>{const c=clv(b),pr=profit(b),d=new Date(b.at);
+    return `<div class="bet" data-id="${esc(b.id)}"><div class="t"><span>${esc(b.label)}</span><span class="pl">${settled(b)?sgn(pr)+money(pr)+"</span>":""}</span></div>
+     <div class="m">${d.toLocaleDateString(undefined,{month:"short",day:"numeric"})} · ${fmtA(b.odds)} · ${money(b.stake)}${b.p!=null?` · model ${pct(b.p)} · edge ${sgn(b.p-imp(b.odds),false)}${pct(b.p-imp(b.odds),1)}</span>`:""}${c!=null?` · CLV ${sgn(c)}${(c*100).toFixed(1)} pts</span>`:""}</div>
+     <div class="ctl"><label>Closing price<input data-k="close" inputmode="numeric" value="${b.close!=null?fmtA(b.close):""}" placeholder="${fmtA(b.odds)}"></label>
+      <label>Result<select data-k="result">${["pending","win","loss","push"].map(r=>`<option value="${r}"${b.result===r?" selected":""}>${r==="pending"?"Open":r[0].toUpperCase()+r.slice(1)}</option>`).join("")}</select></label>
+      <button type="button" data-k="rm" aria-label="Delete bet">Delete</button></div></div>`}).join("")
+    :`<p class="empty">${bets.length?"No bets in this view.":"No bets yet."}</p>`;
+  const groups=new Map();for(const b of bets){const g=groups.get(b.stat)||[];g.push(b);groups.set(b.stat,g)}
+  $("bystat").innerHTML=`<h2>By bet type</h2>`+(groups.size?`<div class="scroll"><table><thead><tr><th>Type</th><th class="num">Bets</th><th class="num">Profit</th><th class="num">ROI</th><th class="num">Avg CLV</th></tr></thead><tbody>${
+    [...groups].sort((a,b)=>b[1].length-a[1].length).map(([k,g])=>{const s=g.filter(settled),st=s.reduce((x,b)=>x+b.stake,0),p=s.reduce((x,b)=>x+profit(b),0),cl=g.map(clv).filter(v=>v!=null);
+      return`<tr><td>${esc(k)}</td><td class="num">${g.length}</td><td class="num">${sgn(p)}${money(p)}</span></td><td class="num">${st?sgn(p)+pct(p/st,1)+"</span>":"—"}</td><td class="num">${cl.length?sgn(mean(cl))+(mean(cl)*100).toFixed(1)+"</span>":"—"}</td></tr>`}).join("")}</tbody></table></div>
+    <p class="hint">Review monthly. Drop a bet type that keeps losing to the closing line.</p>`:'<p class="empty">Results by stat type show up here.</p>');
+}
+$("bets").addEventListener("change",e=>{const el=e.target,row=el.closest(".bet");if(!row)return;const id=row.dataset.id,k=el.dataset.k;
+  if(k==="result")patchBet(id,{result:el.value});
+  if(k==="close"){const t=el.value.trim();if(!t){patchBet(id,{close:null});return}try{const v=parseOdds(t);patchBet(id,{close:v})}catch(err){el.value="";el.placeholder="e.g. -125"}}});
+$("bets").addEventListener("click",e=>{const el=e.target;if(el.dataset.k!=="rm")return;const row=el.closest(".bet");
+  if(el.dataset.sure){removeBet(row.dataset.id)}else{el.dataset.sure=1;el.textContent="Confirm"}});
+$("lfilt").addEventListener("click",e=>{const f=e.target.dataset.f;if(!f)return;lfilt=f;$("lfilt").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===f));renderLog()});
+$("rulesform").addEventListener("change",readRules);$("rulesform").addEventListener("submit",e=>{e.preventDefault();readRules()});
+$("manual").addEventListener("submit",e=>{e.preventDefault();const m=$("m-msg");
+  const label=$("m-label").value.trim();let o;try{o=parseOdds($("m-odds").value)}catch(err){m.textContent=err.message;return}
+  const st=parseFloat($("m-stake").value),pp=parseFloat($("m-p").value);
+  if(!label||o==null||!(st>0)){m.textContent="Fill in the bet, price and stake.";return}
+  addBet({label,stat:/parlay|sgp/i.test(label)?"Parlay":"Other",odds:o,p:isFinite(pp)&&pp>0&&pp<100?pp/100:null,stake:st});
+  ["m-label","m-odds","m-stake","m-p"].forEach(id=>$(id).value="");m.textContent="Added.";});
+fillRules();renderLog();
+
+// ---------- injuries
+let IJ=null,ijG="",ijByKey=new Map();
+const nrm=n=>String(n||"").toLowerCase().replace(/[.']/g,"").replace(/-/g," ").split(/\s+/).filter(w=>w&&!["jr","sr","ii","iii","iv","v"].includes(w)).join(" ");
+const DEFG=new Set(["DL","LB","DB"]);
+function stPill(e){const s=e.gs||e.ps;if(!e.cur)return'<span class="pill p-mute">Not on this week\'s report</span>';
+  const c=e.gs==="Out"||e.gs==="Doubtful"?"p-bad":e.gs==="Questionable"?"p-warn":e.ps==="DNP"?"p-bad":e.ps==="Limited"?"p-warn":e.ps==="Full"?"p-good":"p-mute";
+  const label=e.gs?e.gs:e.ps==="DNP"?"Did not practice":e.ps==="Limited"?"Limited practice":e.ps==="Full"?"Full practice":"Listed";
+  return`<span class="pill ${c}">${label}</span>`}
+function hPill(h){const s=h[1]||h[2];const c=h[1]==="Out"||h[1]==="Doubtful"||(!h[1]&&h[2]==="DNP")?"p-bad":h[1]==="Questionable"||(!h[1]&&h[2]==="Limited")?"p-warn":"p-good";
+  return`<span class="pill ${c}" title="Week ${h[0]}">W${h[0]} ${h[1]||({DNP:"DNP",Limited:"Ltd",Full:"Full"}[h[2]]||"—")}</span>`}
+function gameOf(t){return IJ.games.find(g=>g.a===t||g.h===t)}
+function fmtGame(g){if(!g)return"";const[hh,mm]=(g.t||"0:0").split(":").map(Number);const h12=(hh%12)||12;
+  return`${g.a} @ ${g.h} · ${g.wd} ${h12}:${String(mm).padStart(2,"0")} ${hh<12?"AM":"PM"} ET`}
+function ijRow(e){const g=gameOf(e.t);const o=g?(g.a===e.t?"@ "+g.h:"vs "+g.a):"";
+  return`<div class="ij" data-k="${esc(e.n)}|${esc(e.t)}"><div class="t"><span>${esc(e.n)} <span class="m">${esc(e.t)} ${esc(e.pos)} ${o}</span></span>${stPill(e)}</div>
+   <div class="m">${e.inj?`<b>${esc(e.inj)}</b> · `:""}${e.snap?(e.miss.length?`plays ${pct(e.snap)} of snaps when active`:`plays ${pct(e.snap)} of snaps`):"rarely on the field lately"}${e.miss.length?` · missed wk ${e.miss.join(", ")}`:""}${e.st?` · ${e.st.yds} yds/g, ${e.st.td} TD in ${e.st.g}g`:""}</div>
+   ${e.nx&&e.nx.length&&(e.gs==="Out"||e.gs==="Doubtful"||e.ps==="DNP"||e.gs==="Questionable")?`<div class="m">Next up: ${e.nx.slice(0,3).map(x=>`${esc(x[0])} (${pct(x[1])})`).join(", ")}</div>`:""}</div>`}
+function ijDetail(e){const g=gameOf(e.t);
+  return`<div class="verdict v-${e.gs==="Out"||e.gs==="Doubtful"?"bad":e.cur&&(e.gs||e.ps!=="Full")?"warn":"good"}"><b>${esc(e.n)}</b><span>${esc(e.t)} ${esc(e.pos)}${g?" · "+fmtGame(g):""}</span></div>
+  <div class="rules">${stPill(e)}${e.inj?`<span class="pill p-mute">${esc(e.inj)}</span>`:""}</div>
+  <div class="stats"><div class="stat"><small>Snap share</small><strong>${pct(e.snap)}</strong></div>
+   <div class="stat"><small>Games missed</small><strong>${e.miss.length}</strong></div>
+   ${e.st?`<div class="stat"><small>Yds/game</small><strong>${e.st.yds}</strong></div><div class="stat"><small>TDs</small><strong>${e.st.td}</strong></div>
+   <div class="stat"><small>Targets/g</small><strong>${e.st.tgt}</strong></div><div class="stat"><small>Carries/g</small><strong>${e.st.car}</strong></div>`:""}</div>
+  <div><h2 style="font-size:.95rem;margin-bottom:6px">Report history</h2><div class="scroll"><table><thead><tr><th>Week</th><th>Game status</th><th>Practice</th><th>Injury</th></tr></thead><tbody>
+   ${e.h.slice().reverse().map(h=>`<tr><td>${h[0]}</td><td>${h[1]||"—"}</td><td>${({DNP:"Did not practice",Limited:"Limited",Full:"Full"}[h[2]]||"—")}</td><td>${esc(h[3])}</td></tr>`).join("")}</tbody></table></div></div>
+  ${e.nx&&e.nx.length?`<p class="hint">If he misses time, these ${esc(e.grp)}s get more snaps: ${e.nx.map(x=>`${esc(x[0])} (${pct(x[1])} lately)`).join(", ")}.</p>`:""}
+  ${e.st?`<button class="btn ghost" type="button" id="ij-check">Check his props</button>`:""}`}
+function showOne(e){$("ij-one").innerHTML=ijDetail(e);const b=$("ij-check");if(b)b.addEventListener("click",()=>{$("player").value=e.n;const g=gameOf(e.t);if(g)$("opp").value=g.a===e.t?g.h:g.a;tab("check");check()})}
+function renderInj(){
+  if(!IJ)return;const all=IJ.players,cur=all.filter(e=>e.cur);
+  const key=$("ij-key").checked,gm=$("ij-game").value;
+  const inGame=e=>!gm||gm.split("|").includes(e.t);
+  const posOk=e=>!ijG||(ijG==="D"?DEFG.has(e.grp):e.grp===ijG);
+  const keyOk=e=>!key||e.snap>=.4;
+  const list=cur.filter(e=>inGame(e)&&posOk(e)&&keyOk(e)&&e.inj!=="Rest / not injury"&&!(key&&!e.gs&&e.ps==="Full")).sort((a,b)=>b.sig-a.sig);
+  const sig=cur.filter(e=>e.snap>=.4&&e.inj!=="Rest / not injury");
+  $("injcount").textContent=sig.filter(e=>e.gs==="Out"||e.gs==="Doubtful"||e.gs==="Questionable"||e.ps==="DNP").length;
+  const cnt=f=>list.filter(f).length;
+  $("ij-sum").innerHTML=`<div class="card"><div class="stats">
+   <div class="stat"><small>Out</small><strong>${cnt(e=>e.gs==="Out")}</strong></div>
+   <div class="stat"><small>Doubtful</small><strong>${cnt(e=>e.gs==="Doubtful")}</strong></div>
+   <div class="stat"><small>Questionable</small><strong>${cnt(e=>e.gs==="Questionable")}</strong></div>
+   <div class="stat"><small>DNP / limited</small><strong>${cnt(e=>!e.gs&&(e.ps==="DNP"||e.ps==="Limited"))}</strong></div></div></div>`;
+  $("ij-lh").textContent=gm?"Injuries in this game":"Biggest injuries";
+  $("ij-list").innerHTML=list.length?list.slice(0,gm?200:40).map(ijRow).join(""):'<p class="empty">No one matches these filters on this week\'s report yet.</p>';
+  // teams that haven't posted this week: show who was out last week
+  const posted=new Set(cur.map(e=>e.t)),teams=IJ.games.flatMap(g=>[g.a,g.h]).filter(t=>!gm||gm.split("|").includes(t));
+  const waiting=teams.filter(t=>!posted.has(t));
+  const prev=all.filter(e=>!e.cur&&e.lw===IJ.week-1&&waiting.includes(e.t)&&posOk(e)&&keyOk(e)&&(e.h[e.h.length-1][1]==="Out"||e.h[e.h.length-1][1]==="Doubtful"||e.h[e.h.length-1][1]==="Questionable")).map(e=>{const l=e.h[e.h.length-1];return{e,w:({Out:1,Doubtful:.9,Questionable:.55}[l[1]]||0)*e.snap*(e.grp==="QB"?1.6:["RB","WR","TE"].includes(e.grp)?1.25:1)}}).sort((a,b)=>b.w-a.w).map(x=>x.e);
+  const pv=$("ij-prev");pv.hidden=!waiting.length;
+  if(waiting.length)pv.innerHTML=`<h2>Still waiting on ${waiting.length===1?"1 team":waiting.length+" teams"}</h2><p class="hint">${waiting.join(", ")} haven't posted their Week ${IJ.week} report yet. Teams post after practice, usually mid-to-late afternoon ET, three days before the game. Below: who was listed for Week ${IJ.week-1}.</p>`+
+    (prev.length?prev.slice(0,30).map(e=>{const l=e.h[e.h.length-1];return ijRow({...e,cur:1,gs:l[1],ps:l[2],inj:l[3]}).replace("</span></div>",`</span></div>`)}).join(""):'<p class="empty">No key players were listed last week.</p>');
+  [$("ij-list"),pv].forEach(el=>el.querySelectorAll(".ij").forEach(r=>r.addEventListener("click",()=>{const[n,t]=r.dataset.k.split("|");const e=all.find(x=>x.n===n&&x.t===t);if(e){showOne(e);$("ij-one").scrollIntoView({behavior:"smooth",block:"nearest"})}})));
+}
+function indexInj(){
+  ijByKey.clear();for(const e of IJ.players)ijByKey.set(nrm(e.n)+"|"+e.t,e);
+  const u=new Date(IJ.updated.replace("Z",":00Z"));
+  $("ij-head").textContent=`Week ${IJ.week} injury report`;
+  $("ij-fresh").textContent=`Official team reports · updated ${u.toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}. Players on injured reserve aren't listed.`;
+  $("ij-game").innerHTML='<option value="">All games</option>'+IJ.games.map(g=>`<option value="${g.a}|${g.h}">${fmtGame(g)}</option>`).join("");
+  $("ij-names").innerHTML=[...new Set(IJ.players.map(e=>e.n))].sort().map(n=>`<option value="${esc(n)}">`).join("");
+  renderInj();
+}
+function injNotes(p,team,opp){
+  if(!IJ)return[];const out=[];const me=ijByKey.get(nrm(p.n)+"|"+team);
+  if(me&&me.cur&&me.inj!=="Rest / not injury")out.push({w:1,t:`${p.n} is on this week's injury report: ${me.inj||"injury"}, ${me.gs||({DNP:"did not practice",Limited:"limited in practice",Full:"full practice"}[me.ps]||"listed")}.`});
+  const mates=IJ.players.filter(e=>e.cur&&e.t===team&&e.n!==me?.n&&e.snap>=.4&&e.side==="O"&&(e.gs||e.ps!=="Full")).sort((a,b)=>b.sig-a.sig).slice(0,4);
+  if(mates.length)out.push(`Teammates on the report: ${mates.map(e=>`${e.n} (${e.pos}, ${e.gs||e.ps})`).join(", ")}.`);
+  if(opp){const d=IJ.players.filter(e=>e.cur&&e.t===opp&&e.side==="D"&&e.snap>=.4&&(e.gs||e.ps!=="Full")).sort((a,b)=>b.sig-a.sig).slice(0,4);
+    if(d.length)out.push(`${opp} defenders on the report: ${d.map(e=>`${e.n} (${e.pos}, ${e.gs||e.ps})`).join(", ")}.`)}
+  return out;
+}
+$("ij-q").addEventListener("change",()=>{const q=nrm($("ij-q").value);if(!IJ||!q)return;
+  const hits=IJ.players.filter(e=>nrm(e.n)===q);const e=hits[0]||IJ.players.find(x=>nrm(x.n).includes(q));
+  if(e)showOne(e);else $("ij-one").innerHTML=`<p class="empty">${esc($("ij-q").value)} hasn't been on an injury report this season.</p>`});
+$("ij-game").addEventListener("change",renderInj);$("ij-key").addEventListener("change",renderInj);
+$("ij-pos").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;ijG=b.dataset.g;$("ij-pos").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderInj()});
+fetch("injuries.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{IJ=d;indexInj();if(D&&last)check()})
+ .catch(()=>{$("ij-fresh").textContent="The injury report didn't load. Refresh the page to try again."});
+
+// ---------- backup / export
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+$("bk-csv").addEventListener("click",()=>{
+  const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const rows=[["date","bet","type","price","stake","model_chance","closing_price","result","profit"]].concat(bets.map(b=>[new Date(b.at).toISOString().slice(0,10),b.label,b.stat,fmtA(b.odds),b.stake,b.p!=null?(b.p*100).toFixed(1)+"%":"",b.close!=null?fmtA(b.close):"",b.result,profit(b).toFixed(2)]));
+  download("prop-finder-bets.csv",rows.map(r=>r.map(q).join(",")).join("\n"),"text/csv")});
+$("bk-out").addEventListener("click",()=>download("prop-finder-backup.json",JSON.stringify({v:1,saved:Date.now(),rules:R,bets,legs},null,1),"application/json"));
+$("bk-in").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;
+  try{const d=JSON.parse(await f.text());const have=new Set(bets.map(b=>b.id));let n=0;
+    for(const b of d.bets||[]){if(b&&b.id&&!have.has(b.id)&&isFinite(b.odds)&&b.stake>0){bets.push(b);n++}}
+    bets.sort((a,b)=>a.at-b.at);if(d.rules)R={...RDEF,...d.rules};if(Array.isArray(d.legs)&&!legs.length){legs=d.legs;saveLegs();renderParlay()}
+    persistLocal();fillRules();renderLog();$("bk-msg").textContent=`Restored ${n} bet${n===1?"":"s"}.`}
+  catch(err){$("bk-msg").textContent="That file isn't a Prop Finder backup."}e.target.value=""});
+
+// ---------- Ask: a chat assistant that answers from this app's data through tool calls
+const PROV={
+  groq:{base:"https://api.groq.com/openai/v1",model:"openai/gpt-oss-120b",vision:false,help:'Free key: sign up at console.groq.com, then API Keys → Create. No card needed.'},
+  gemini:{base:"https://generativelanguage.googleapis.com/v1beta/openai",model:"gemini-2.5-flash",vision:true,help:'Free key: aistudio.google.com → Get API key. Note: Google may use free-tier chats to improve its products.'},
+  openrouter:{base:"https://openrouter.ai/api/v1",model:"openai/gpt-oss-120b:free",vision:false,help:'Free key: openrouter.ai → Keys. Models ending in ":free" cost nothing; free providers may log prompts.'},
+  custom:{base:"",model:"",vision:true,help:"Any service with an OpenAI-style /chat/completions endpoint."}};
+let AI={prov:"groq",key:"",model:"",base:"",...store.get("pf_ai",{})};
+let convo=[],pendingImg=null,asking=false;
+function aiCfg(){const p=PROV[AI.prov]||PROV.groq;return{base:(AI.prov==="custom"?AI.base:p.base).replace(/\/+$/,""),model:AI.model||p.model,vision:p.vision}}
+function fillAI(){$("ai-prov").value=AI.prov;$("ai-key").value=AI.key;$("ai-model").value=AI.model||PROV[AI.prov].model;$("ai-base").value=AI.base;
+  $("ai-base-l").hidden=AI.prov!=="custom";$("ai-help").textContent=PROV[AI.prov].help;
+  $("ask-status").textContent=AI.key?`Using ${aiCfg().model}. Answers come from this app's stats, injuries and your log.`:"Add a free API key in AI settings below to start.";
+  if(!AI.key)$("ask-set").open=true}
+function saveAI(){AI={prov:$("ai-prov").value,key:$("ai-key").value.trim(),model:$("ai-model").value.trim(),base:$("ai-base").value.trim()};store.set("pf_ai",AI);fillAI()}
+$("ai-prov").addEventListener("change",()=>{$("ai-model").value="";saveAI()});
+["ai-key","ai-model","ai-base"].forEach(id=>$(id).addEventListener("change",saveAI));
+
+// --- tool implementations (pure data, no DOM)
+const statNames=Object.keys(STATS);
+function findP(name){const q=String(name||"").trim().toLowerCase();if(!q||!D)return null;
+  let p=byName.get(q);if(p)return p;const n2=nrm(q);
+  const hits=D.players.filter(x=>nrm(x.n).includes(n2)||n2.split(" ").every(w=>nrm(x.n).includes(w)));return hits.sort((a,b)=>b.g.length-a.g.length)[0]||null}
+function teamNow(p){return p.g[p.g.length-1][C.team]}
+function nextOpp(team){if(!IJ)return null;const g=IJ.games.find(x=>x.a===team||x.h===team);return g?{opp:g.a===team?g.h:g.a,home:g.h===team,game:fmtGame(g),spread:g.sp,total:g.tot}:null}
+function T_find_player({name}){const p=findP(name);if(!p)return{error:"No player found. Check spelling."};const t=teamNow(p);
+  return{name:p.n,pos:p.p,team:t,games_in_data:p.g.length,this_week:nextOpp(t)}}
+function T_game_log({player,last_n=8}){const p=findP(player);if(!p)return{error:"No player found."};
+  return{name:p.n,pos:p.p,games:p.g.slice(-Math.min(+last_n||8,20)).map(g=>({season:g[0],week:g[1],team:g[2],opp:g[3],pass_att:g[C.att],comp:g[C.comp],pass_yds:g[C.pyd],pass_td:g[C.ptd],int:g[C.int],carries:g[C.car],rush_yds:g[C.ryd],rush_td:g[C.rtd],targets:g[C.tgt],rec:g[C.rec],rec_yds:g[C.cyd],rec_td:g[C.ctd]}))}}
+function T_check_prop({player,stat,line,over_odds,under_odds,opponent,last_n=8}){
+  const p=findP(player);if(!p)return{error:"No player found."};const S=STATS[stat];if(!S)return{error:"Unknown stat. Use one of: "+statNames.join(", ")};
+  line=+line;if(!isFinite(line))return{error:"line is required"};
+  const team=teamNow(p);let opp=opponent||(nextOpp(team)||{}).opp||"";
+  const all=gamesFor(p,{zfill:true,qbskip:true}),sel=all.slice(-(+last_n||8));if(sel.length<2)return{error:"Not enough games."};
+  const vals=sel.map(S.f),f=opp?oppFactor(S.k,opp,8):1,m0=mean(vals),s0=sd(vals),m=m0*f,s=Math.max(s0*f,.25*m,.3);
+  const adj=vals.map(v=>v*f),N=adj.length,emp=[adj.filter(v=>v>line).length/N,adj.filter(v=>v===line).length/N,adj.filter(v=>v<line).length/N];
+  const mod=S.td?poisProbs(m,line):normProbs(m,s,line);const[po,pp,pu]=emp.map((x,i)=>(x+mod[i])/2);
+  const pO=pp<1?po/(1-pp):0,pU=pp<1?pu/(1-pp):0;
+  const side=(nm,pr,o)=>{const r={side:nm,model_prob:+pr.toFixed(3),fair_odds:fair(pr)};if(o!=null&&isFinite(+o)&&Math.abs(+o)>=100){r.odds=+o;r.breakeven=+imp(+o).toFixed(3);r.edge=+(pr-imp(+o)).toFixed(3)}return r};
+  const me=IJ&&ijByKey.get(nrm(p.n)+"|"+team);
+  return{player:p.n,pos:p.p,team,opponent:opp||null,stat,line,games_used:N,values_oldest_first:vals,average:+m0.toFixed(1),median:median(vals),
+    opponent_factor:+f.toFixed(2),projection:+m.toFixed(1),hit_over:vals.filter(v=>v>line).length,hit_under:vals.filter(v=>v<line).length,
+    over:side("Over",pO,over_odds),under:side("Under",pU,under_odds),
+    injury:me&&me.cur?{injury:me.inj,game_status:me.gs||null,practice:me.ps||null}:null,
+    zero_filled_games:sel.filter(g=>g.zero).length,
+    caution:N<8?"small sample":null}}
+function T_defense({team,position}){if(!D)return{error:"no data"};team=String(team||"").toUpperCase();
+  const r=(label,map,low=true,dp=1)=>{const x=rankOf(map,team,low);return x?{stat:label,value:+x.v.toFixed(dp),league_avg:+x.lg.toFixed(dp),rank:x.rank,of:x.n}:null};
+  const out=[r("pass yds allowed/g",allowed("pyd",g=>g[C.pyd],8)),r("rush yds allowed/g",allowed("ryd",g=>g[C.ryd],8)),
+    r("yds per carry allowed",ratioAllowed("ypc",g=>g[C.ryd],g=>g[C.car],8),true,2),r("yds per pass att allowed",ratioAllowed("ypa",g=>g[C.pyd],g=>g[C.att],8),true,2),
+    r("rush+rec TDs allowed/g",allowed("tds",g=>g[C.rtd]+g[C.ctd],8),true,2)];
+  for(const pos of position?[String(position).toUpperCase()]:["WR","TE","RB"]){out.push(r(`targets to ${pos}s/g`,allowed("tgt",g=>g[C.tgt],8,pos)),r(`rec yds to ${pos}s/g`,allowed("cyd",g=>g[C.cyd],8,pos)))}
+  const inj=IJ?IJ.players.filter(e=>e.cur&&e.t===team&&e.side==="D"&&e.snap>=.4&&(e.gs||e.ps!=="Full")).map(e=>({name:e.n,pos:e.pos,injury:e.inj,status:e.gs||e.ps})):[];
+  return{team,window:"last 8 games",note:"rank 1 = allows the least",stats:out.filter(Boolean),defenders_on_injury_report:inj}}
+function T_injuries({team,player}){if(!IJ)return{error:"Injury report not loaded."};
+  if(player){const q=nrm(player);const e=IJ.players.find(x=>nrm(x.n)===q)||IJ.players.find(x=>nrm(x.n).includes(q));
+    if(!e)return{result:"Not on any injury report this season."};return{name:e.n,team:e.t,pos:e.pos,on_this_weeks_report:!!e.cur,injury:e.inj,game_status:e.gs||null,practice:e.ps||null,snap_share:e.snap,missed_weeks:e.miss,history:e.h.map(h=>({week:h[0],game_status:h[1]||null,practice:h[2]||null,injury:h[3]})),next_up:e.nx||null}}
+  const t=String(team||"").toUpperCase();const list=IJ.players.filter(e=>e.cur&&(!t||e.t===t)&&e.snap>=.3&&e.inj!=="Rest / not injury").sort((a,b)=>b.sig-a.sig).slice(0,t?25:20);
+  const posted=new Set(IJ.players.filter(e=>e.cur).map(e=>e.t));
+  return{week:IJ.week,report_posted:t?posted.has(t):[...posted],players:list.map(e=>({name:e.n,team:e.t,pos:e.pos,injury:e.inj,game_status:e.gs||null,practice:e.ps||null,snap_share:e.snap,next_up:e.nx?e.nx.slice(0,2):null})),
+    note:"Players on injured reserve are not listed. If a team hasn't posted this week, check last week's status with player lookups."}}
+function T_schedule(){if(!IJ)return{error:"not loaded"};return{week:IJ.week,note:"spread is home team's margin (positive = home favored)",games:IJ.games.map(g=>({game:fmtGame(g),away:g.a,home:g.h,date:g.d,spread_home:g.sp,total:g.tot}))}}
+function T_parlay({legs:L,book_odds,boost_pct=0,stake=0}){if(!Array.isArray(L)||!L.length)return{error:"legs required"};
+  let Dm=1,P=1;for(const l of L){if(!isFinite(+l.odds)||Math.abs(+l.odds)<100)return{error:"each leg needs American odds like -115"};Dm*=dec(+l.odds);if(l.prob!=null)P*=+l.prob}
+  const haveP=L.every(l=>l.prob!=null);const Db=book_odds?dec(+book_odds):Dm,Dp=1+(Db-1)*(1+(+boost_pct||0)/100);
+  return{legs_multiplied:fmtA(amer(Dm)),payout_odds:fmtA(amer(Dp)),breakeven_prob:+(1/Dp).toFixed(4),model_prob:haveP?+P.toFixed(4):null,ev_per_dollar:haveP?+(P*Dp-1).toFixed(3):null,
+    returns:stake?+(stake*Dp).toFixed(2):null,note:"Model probability assumes legs are independent; same-game legs are correlated."}}
+function T_bet_log(){const S=bets.filter(settled),pl=S.reduce((s,b)=>s+profit(b),0),st=S.reduce((s,b)=>s+b.stake,0);
+  return{bankroll_now:+bankNow().toFixed(2),starting_bankroll:R.bank,rules:R,settled:S.length,profit:+pl.toFixed(2),roi:st?+(pl/st).toFixed(3):null,
+    open_bets:bets.filter(b=>b.result==="pending").map(b=>({label:b.label,odds:b.odds,stake:b.stake,model_prob:b.p})),recent_settled:S.slice(-10).map(b=>({label:b.label,odds:b.odds,result:b.result,close:b.close}))}}
+function T_add_bet({label,odds,stake,model_prob,type}){if(!label||!isFinite(+odds)||Math.abs(+odds)<100||!(+stake>0))return{error:"label, American odds and stake are required"};
+  addBet({label:String(label).slice(0,200),stat:type||(/parlay|sgp|leg/i.test(label)?"Parlay":"Other"),odds:+odds,p:model_prob!=null&&+model_prob>0&&+model_prob<1?+model_prob:null,stake:+stake});return{ok:true,logged:label}}
+const TOOLS={find_player:T_find_player,game_log:T_game_log,check_prop:T_check_prop,defense:T_defense,injuries:T_injuries,schedule:T_schedule,parlay_math:T_parlay,bet_log:T_bet_log,add_bet:T_add_bet};
+const fn=(name,description,properties,required=[])=>({type:"function",function:{name,description,parameters:{type:"object",properties,required}}});
+const TOOL_DEFS=[
+  fn("find_player","Look up a player: position, current team and this week's opponent.",{name:{type:"string"}},["name"]),
+  fn("game_log","A player's recent game-by-game box score (oldest first).",{player:{type:"string"},last_n:{type:"integer",description:"games, default 8, max 20"}},["player"]),
+  fn("check_prop","Run the app's prop model: hit rate, projection, model probability and edge for over/under a line. Opponent defaults to this week's opponent.",
+    {player:{type:"string"},stat:{type:"string",enum:statNames},line:{type:"number"},over_odds:{type:"number",description:"American odds, e.g. -115"},under_odds:{type:"number"},opponent:{type:"string",description:"team code, e.g. KC"},last_n:{type:"integer"}},["player","stat","line"]),
+  fn("defense","A team defense's numbers allowed and league ranks over its last 8 games, plus injured defenders.",{team:{type:"string",description:"team code, e.g. DEN"},position:{type:"string",enum:["WR","TE","RB"]}},["team"]),
+  fn("injuries","This week's official injury report, for one team, one player, or the biggest injuries league-wide.",{team:{type:"string"},player:{type:"string"}}),
+  fn("schedule","This week's games with spreads and totals.",{}),
+  fn("parlay_math","Combine legs into parlay odds, breakeven and expected value.",{legs:{type:"array",items:{type:"object",properties:{odds:{type:"number"},prob:{type:"number",description:"model probability 0-1 if known"}},required:["odds"]}},book_odds:{type:"number"},boost_pct:{type:"number"},stake:{type:"number"}},["legs"]),
+  fn("bet_log","The user's bankroll, betting rules, open bets and recent results.",{}),
+  fn("add_bet","Add a bet the user placed to their bet log. Only when the user asks or shares a bet slip.",{label:{type:"string",description:"short description incl. book and legs"},odds:{type:"number"},stake:{type:"number"},model_prob:{type:"number"},type:{type:"string",description:"stat type, or Parlay"}},["label","odds","stake"])];
+function sysPrompt(){const d=new Date();return`You are the assistant inside Prop Finder, a personal NFL player-prop app. Today is ${d.toDateString()}. Stats run through ${D?D.latest.season+" Week "+D.latest.week:"(loading)"}; the injury report is for Week ${IJ?IJ.week:"?"}.
+Always use the tools for numbers (stats, hit rates, probabilities, defense ranks, injuries, odds math) — never guess them from memory. Team codes: LA = Rams, LAC = Chargers, LV = Raiders, WAS = Commanders.
+When judging a bet: give the model probability vs the breakeven, the hit rate, the matchup and any injury news, then a short verdict. Flag edges above 10% as likely missing information. Treat same-game parlay legs as correlated.
+If the user shares a bet slip image, read each leg, odds, stake and book; check each leg with check_prop; ask before logging it unless they asked you to log it.
+Be concise and plain. You are not a financial advisor; betting carries risk — say so briefly when giving a verdict, and never encourage chasing losses.`}
+function md(t){const e=esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>");
+  return e.split(/\n{2,}/).map(b=>/^\s*[-*•] /m.test(b)?"<ul>"+b.split(/\n/).filter(x=>x.trim()).map(x=>"<li>"+x.replace(/^\s*[-*•]\s*/,"")+"</li>").join("")+"</ul>":"<p>"+b.replace(/\n/g,"<br>")+"</p>").join("")}
+function addMsg(cls,html){const el=document.createElement("div");el.className="msg "+cls;el.innerHTML=html;$("chat").appendChild(el);el.scrollIntoView({block:"nearest"});return el}
+async function callAI(messages){const c=aiCfg();if(!c.base)throw new Error("Set an API base URL in AI settings.");
+  let r;try{r=await fetch(c.base+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+AI.key},body:JSON.stringify({model:c.model,messages,tools:TOOL_DEFS,tool_choice:"auto",temperature:.3})})}catch(e){throw new Error("Couldn't reach the provider. Check your connection; if it keeps happening, this provider may block requests from web pages, so try OpenRouter in AI settings.")}
+  if(!r.ok){let m="";try{const j=await r.json();m=(j.error&&(j.error.message||j.error))||JSON.stringify(j)}catch(e){}
+    throw new Error(r.status===401||r.status===403?"The provider rejected the API key. Check it in AI settings.":r.status===429?"Rate limit reached on the free tier. Wait a minute and try again.":`Provider error ${r.status}: ${String(m).slice(0,200)}`)}
+  const j=await r.json();const msg=j.choices&&j.choices[0]&&j.choices[0].message;if(!msg)throw new Error("Empty reply from the provider.");return msg}
+async function ask(text){
+  if(asking)return;if(!AI.key){$("ask-set").open=true;$("ask-status").textContent="Add your API key first.";return}
+  if(!D){addMsg("t","Stats are still loading. Try again in a moment.");return}
+  asking=true;$("ask-go").disabled=true;
+  let content=text;
+  if(pendingImg){if(!aiCfg().vision){addMsg("t","This provider can't read images. Switch to Gemini in AI settings to scan slips.");asking=false;$("ask-go").disabled=false;return}
+    content=[{type:"text",text:text||"Here is my bet slip. Read it and check each leg."},{type:"image_url",image_url:{url:pendingImg}}]}
+  $("ask-chips").hidden=true;
+  addMsg("u",esc(text||"(bet slip)")+(pendingImg?`<img src="${pendingImg}" alt="">`:""));pendingImg=null;$("ask-att").textContent="";
+  convo.push({role:"user",content});
+  const wait=addMsg("t","Thinking…");
+  try{
+    for(let i=0;i<8;i++){
+      const msg=await callAI([{role:"system",content:sysPrompt()},...convo]);
+      const calls=msg.tool_calls||[];
+      convo.push({role:"assistant",content:msg.content||"",...(calls.length?{tool_calls:calls}:{})});
+      if(!calls.length){wait.remove();addMsg("a",md(msg.content||"(no answer)"));break}
+      for(const c of calls){let args={};try{args=JSON.parse(c.function.arguments||"{}")}catch(e){}
+        let res;try{res=TOOLS[c.function.name]?TOOLS[c.function.name](args):{error:"unknown tool"}}catch(e){res={error:String(e.message||e)}}
+        wait.textContent="Looking up: "+c.function.name.replace("_"," ")+(args.player||args.name||args.team?" · "+(args.player||args.name||args.team):"")+"…";
+        convo.push({role:"tool",tool_call_id:c.id,name:c.function.name,content:JSON.stringify(res)})}
+      if(i===7){wait.remove();addMsg("t","Stopped after too many lookups. Try a narrower question.")}
+    }
+  }catch(e){wait.remove();addMsg("t",esc(e.message||String(e)));convo.pop()}
+  if(convo.length>40)convo=convo.slice(-30);
+  asking=false;$("ask-go").disabled=false;
+}
+$("askform").addEventListener("submit",e=>{e.preventDefault();const t=$("ask-q").value.trim();if(!t&&!pendingImg)return;$("ask-q").value="";ask(t)});
+$("ask-q").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("askform").requestSubmit()}});
+$("ask-chips").addEventListener("click",e=>{const b=e.target.closest("button");if(b)ask(b.textContent)});
+$("ask-clear").addEventListener("click",()=>{convo=[];$("chat").innerHTML="";$("ask-chips").hidden=false});
+$("ask-img").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;
+  const img=new Image();img.src=URL.createObjectURL(f);await img.decode();const sc=Math.min(1,1400/Math.max(img.width,img.height));
+  const cv=document.createElement("canvas");cv.width=img.width*sc;cv.height=img.height*sc;cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+  pendingImg=cv.toDataURL("image/jpeg",.85);URL.revokeObjectURL(img.src);$("ask-att").textContent="Screenshot attached. Add a question or just tap Ask.";e.target.value=""});
+fillAI();
+
+// ---------- wiring
+$("stat").innerHTML=Object.keys(STATS).map(s=>`<option>${s}</option>`).join("");
+$("stat").addEventListener("change",()=>{const td=STATS[$("stat").value].td;if(td){if($("under").value.trim()==="-110")$("under").value="";if(!$("line").value)$("line").value="0.5"}else if(!$("under").value.trim())$("under").value="-110"});
+$("form").addEventListener("submit",check);
+["sitepx","boost","stake"].forEach(id=>$(id).addEventListener("input",renderParlay));
+$("clearlegs").addEventListener("click",()=>{legs=[];saveLegs();renderParlay()});
+function tab(which){for(const t of ["check","parlay","log","inj","ask"]){$("tab-"+t).setAttribute("aria-selected",t===which);$("panel-"+t).hidden=t!==which}store.set("pf_tab",which)}
+for(const t of ["check","parlay","log","inj","ask"])$("tab-"+t).addEventListener("click",()=>tab(t));
+{const t=store.get("pf_tab","check");if(["parlay","log","inj","ask"].includes(t))tab(t)}
+renderParlay();
+// example so the page opens in a working state
+$("player").value="Bo Nix";$("stat").value="Rushing Yards";$("line").value="13.5";$("over").value="-108";$("under").value="-117";
+fetch("data.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{D=d;index();$("opp").value="SEA";check()})
+ .catch(()=>{$("fresh").textContent="Couldn't load stats. Refresh the page.";$("out").innerHTML='<div class="card empty">The stats file didn\'t load. Refresh the page to try again.</div>'});
+})();
+</script>
+
+</body></html>
