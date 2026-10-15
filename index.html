@@ -441,8 +441,8 @@ function check(e){
   let p=byName.get(name);if(!p){const hits=D.players.filter(x=>x.n.toLowerCase().includes(name));p=name&&hits.sort((a,b)=>b.g.length-a.g.length)[0]}
   if(!p){out.innerHTML='<div class="card empty">No player matches that name. Pick one from the suggestions.</div>';return}
   $("player").value=p.n;$("player-x").hidden=false;
-  refreshStats(p,true);
-  if($("stat").selectedOptions[0]&&$("stat").selectedOptions[0].disabled){out.innerHTML=`<div class="card empty">${esc(p.n)} doesn't get ${esc($("stat").value.toLowerCase())} in his role. Pick one of the stats that aren't greyed out.</div>`;return}
+  {const prev=$("stat").value;refreshStats(p,true);
+   if($("stat").value!==prev){if(typeof fillLines==="function")fillLines();out.innerHTML=`<div class="card empty">${esc(p.n)} doesn't get ${esc(prev.toLowerCase())} in his role, so I switched to ${esc($("stat").value)}. Check the line and odds, then tap Check prop again.</div>`;return}}
   const stat=$("stat").value,S=STATS[stat];let line,o,u,X=null;const ms=MODE==="ms";
   try{if(ms){X=parseFloat($("line").value);if(!isFinite(X)||X<1||X!==Math.round(X))throw new Error('Enter the milestone as a whole number, like 90 for "90+".');
       line=X-.5;o=parseOdds($("over").value);u=null;if(o==null)throw new Error(`Enter the book's price for ${X}+.`)}
@@ -1035,16 +1035,14 @@ function roleStats(p){const g=p.g.slice(-8);const av=k=>g.length?mean(g.map(x=>x
   return{"Receiving Yards":rec,"Receptions":rec,"Targets":rec,"Receiving TDs":rec,"Anytime TD (rush + rec)":rush||rec,
     "Rushing Yards":rush,"Rush Attempts":rush,"Rushing TDs":rush,"Rush + Rec Yards":rec||(rush&&p.p==="RB"),
     "Passing Yards":pass,"Pass Attempts":pass,"Pass Completions":pass,"Passing TDs":pass,"Interceptions":pass,"Pass + Rush Yards":pass}}
-function refreshStats(p,keep){const sel=$("stat");const ok=p?roleStats(p):null;
+function refreshStats(p,keep){const sel=$("stat"),cur=sel.value,ok=p?roleStats(p):null;
   const hasOdds=typeof linesFor==="function"&&typeof ODDS!=="undefined"&&ODDS&&typeof BOOK!=="undefined"&&BOOK;
   const ab={draftkings:"DK",fanduel:"FD"};let firstLine=null;
-  for(const o of sel.options){const st=o.value;let txt=st,dis=false;
-    if(ok&&!ok[st]){dis=true;txt=st+" (not his role)"}
-    else if(p&&hasOdds){const L=linesFor(p.n,st);if(L&&L[BOOK]){txt=st+" · "+ab[BOOK]+" line";if(!firstLine)firstLine=st}else if(L){const ob=Object.keys(L)[0];txt=st+" · "+(ab[ob]||ob)+" only"}}
-    o.disabled=dis;o.textContent=txt}
-  const curO=sel.selectedOptions[0];
-  if(!keep&&p&&curO&&curO.disabled){
-    const pick=firstLine||[...sel.options].find(o=>!o.disabled)?.value;if(pick&&pick!==sel.value){sel.value=pick;sel.dispatchEvent(new Event("change"))}}}
+  const list=Object.keys(STATS).filter(st=>!ok||ok[st]);
+  sel.innerHTML=list.map(st=>{let txt=st;if(p&&hasOdds){const L=linesFor(p.n,st);if(L&&L[BOOK]){txt+=" · "+ab[BOOK]+" line";if(!firstLine)firstLine=st}else if(L){const ob=Object.keys(L)[0];txt+=" · "+(ab[ob]||ob)+" only"}}
+    return`<option value="${st}">${txt}</option>`}).join("");
+  if(list.includes(cur))sel.value=cur;
+  else{sel.value=firstLine||list[0];if(!keep)sel.dispatchEvent(new Event("change"))}}
 $("player").addEventListener("change",()=>{const q=$("player").value.trim().toLowerCase();if(!q||!D){refreshStats(null);return}
   const p=byName.get(q)||D.players.filter(x=>x.n.toLowerCase().includes(q)).sort((a,b)=>b.g.length-a.g.length)[0];refreshStats(p||null)});
 if(document.getElementById("book"))$("book").addEventListener("click",()=>setTimeout(()=>{const q=$("player").value.trim().toLowerCase();const p=q&&D&&byName.get(q);if(p)refreshStats(p,true)},0));
