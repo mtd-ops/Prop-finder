@@ -128,6 +128,9 @@ details.set summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:
 .acl button small{color:var(--muted);font-size:.78rem;white-space:nowrap}
 .acl button[aria-selected="true"]{background:var(--sunk)}
 .acl b{color:var(--accent);font-weight:600}
+.bookbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.odds-hint{background:var(--sunk);border-radius:8px;padding:9px 11px;color:var(--fg);line-height:1.5}
+.odds-hint b{font-weight:600}
 .filt{display:flex;gap:6px;flex-wrap:wrap}
 .filt button{background:var(--sunk);border:0;border-radius:20px;color:var(--muted);padding:5px 12px;font:600 .78rem var(--f-body);cursor:pointer}
 .filt button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
@@ -140,6 +143,7 @@ details.set summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:
     <div class="brand"><h1>Prop Finder</h1><span class="fresh" id="fresh">Loading stats…</span></div>
     <nav class="tabs" role="tablist">
       <button role="tab" id="tab-check" aria-selected="true" aria-controls="panel-check">Props</button>
+      <button role="tab" id="tab-value" aria-selected="false" aria-controls="panel-value">Value</button>
       <button role="tab" id="tab-parlay" aria-selected="false" aria-controls="panel-parlay">Parlay<span class="count" id="legcount">0</span></button>
       <button role="tab" id="tab-log" aria-selected="false" aria-controls="panel-log">Log<span class="count" id="logcount">0</span></button>
       <button role="tab" id="tab-inj" aria-selected="false" aria-controls="panel-inj">Injuries<span class="count" id="injcount">0</span></button>
@@ -154,6 +158,12 @@ details.set summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:
     <h2>The prop</h2>
     <label for="player">Player<span class="ac"><input id="player" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Start typing a name, e.g. Bo Nix" role="combobox" aria-expanded="false" aria-controls="player-acl"><button type="button" class="xbtn" id="player-x" aria-label="Clear name" hidden>×</button><span class="acl" id="player-acl" role="listbox" hidden></span></span></label>
     <datalist id="players"></datalist>
+    <div class="bookbar"><span class="hint" style="margin:0">Auto-fill lines from</span>
+      <div class="filt" id="book" role="group" aria-label="Sportsbook lines">
+        <button type="button" data-b="draftkings" aria-pressed="false">DraftKings</button>
+        <button type="button" data-b="fanduel" aria-pressed="false">FanDuel</button>
+        <button type="button" data-b="" aria-pressed="false">Off</button>
+      </div></div>
     <div class="filt" id="mode" role="group" aria-label="Bet type">
       <button type="button" data-m="ou" aria-pressed="true">Over / Under</button>
       <button type="button" data-m="ms" aria-pressed="false">Milestone (X+)</button>
@@ -168,6 +178,7 @@ details.set summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:
       <label for="under" id="under-wrap">Under price<input id="under" inputmode="numeric" value="-110"></label>
     </div>
     <p class="hint" id="price-hint">Leave a price blank if the book only offers one side.</p>
+    <p class="hint odds-hint" id="odds-hint" hidden></p>
     <div class="grid2">
       <label for="opp">Opponent<select id="opp"><option value="">Pick a team</option></select></label>
       <label for="ngames">Last N games<input id="ngames" inputmode="numeric" value="8"></label>
@@ -180,6 +191,30 @@ details.set summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:
     <div class="row"><button class="btn" type="submit" id="go">Check prop</button><button class="btn ghost" type="button" id="clearform" style="flex:0 0 auto">Clear</button></div>
   </form>
   <div id="out" class="panel" style="padding-top:0"></div>
+</section>
+
+<section class="panel" id="panel-value" role="tabpanel" hidden>
+  <div class="card">
+    <h2>Value board</h2>
+    <p class="hint" id="vb-sum">Loading…</p>
+    <div class="filt" id="vb-book" role="group" aria-label="Books">
+      <button type="button" data-b="both" aria-pressed="true">Best of both</button>
+      <button type="button" data-b="draftkings" aria-pressed="false">DraftKings</button>
+      <button type="button" data-b="fanduel" aria-pressed="false">FanDuel</button>
+    </div>
+    <label for="vb-game">Game<select id="vb-game"><option value="">All games</option></select></label>
+  </div>
+  <div id="vb-list" class="panel" style="padding-top:0"></div>
+  <div class="card">
+    <h2>Script builder</h2>
+    <p class="hint">Picks value legs that fit one story for the game, adding legs until it reaches your target odds.</p>
+    <label for="vb-sgame">Game<select id="vb-sgame"></select></label>
+    <div class="grid2">
+      <label for="vb-script">Script<select id="vb-script"></select></label>
+      <label for="vb-target">Target odds<input id="vb-target" inputmode="numeric" value="+1000"></label>
+    </div>
+    <div id="vb-build"></div>
+  </div>
 </section>
 
 <section class="panel" id="panel-parlay" role="tabpanel" hidden>
@@ -866,7 +901,10 @@ function T_bet_log(){const S=bets.filter(settled),pl=S.reduce((s,b)=>s+profit(b)
     open_bets:bets.filter(b=>b.result==="pending").map(b=>({label:b.label,odds:b.odds,stake:b.stake,model_prob:b.p})),recent_settled:S.slice(-10).map(b=>({label:b.label,odds:b.odds,result:b.result,close:b.close}))}}
 function T_add_bet({label,odds,stake,model_prob,type}){if(!label||!isFinite(+odds)||Math.abs(+odds)<100||!(+stake>0))return{error:"label, American odds and stake are required"};
   addBet({label:String(label).slice(0,200),stat:type||(/parlay|sgp|leg/i.test(label)?"Parlay":"Other"),odds:+odds,p:model_prob!=null&&+model_prob>0&&+model_prob<1?+model_prob:null,stake:+stake});return{ok:true,logged:label}}
-const TOOLS={find_player:T_find_player,game_log:T_game_log,check_prop:T_check_prop,defense:T_defense,injuries:T_injuries,schedule:T_schedule,parlay_math:T_parlay,bet_log:T_bet_log,add_bet:T_add_bet};
+function T_lines({player}){if(!ODDS)return{error:"No sportsbook lines loaded (pulled Wed/Sat/Sun evenings)."};
+  const out={};for(const[stat,mk]of Object.entries(MKT)){const L=linesFor(player,stat);if(L)out[stat]=L}
+  return Object.keys(out).length?{player,lines:out,note:"over/under are American odds; for Anytime TD, over = yes. Lines may have moved since 'fetched'."}:{player,lines:null,note:"No lines for this player in the latest pull."}}
+const TOOLS={find_player:T_find_player,sportsbook_lines:T_lines,game_log:T_game_log,check_prop:T_check_prop,defense:T_defense,injuries:T_injuries,schedule:T_schedule,parlay_math:T_parlay,bet_log:T_bet_log,add_bet:T_add_bet};
 const fn=(name,description,properties,required=[])=>({type:"function",function:{name,description,parameters:{type:"object",properties,required}}});
 const TOOL_DEFS=[
   fn("find_player","Look up a player: position, current team and this week's opponent.",{name:{type:"string"}},["name"]),
@@ -876,6 +914,7 @@ const TOOL_DEFS=[
   fn("defense","A team defense's numbers allowed and league ranks over its last 8 games, plus injured defenders.",{team:{type:"string",description:"team code, e.g. DEN"},position:{type:"string",enum:["WR","TE","RB"]}},["team"]),
   fn("injuries","This week's official injury report, for one team, one player, or the biggest injuries league-wide.",{team:{type:"string"},player:{type:"string"}}),
   fn("schedule","This week's games with spreads and totals.",{}),
+  fn("sportsbook_lines","DraftKings and FanDuel lines and prices for a player's props, from the latest pull. Use these as the odds when the user doesn't give a price.",{player:{type:"string"}},["player"]),
   fn("parlay_math","Combine legs into parlay odds, breakeven and expected value.",{legs:{type:"array",items:{type:"object",properties:{odds:{type:"number"},prob:{type:"number",description:"model probability 0-1 if known"}},required:["odds"]}},book_odds:{type:"number"},boost_pct:{type:"number"},stake:{type:"number"}},["legs"]),
   fn("bet_log","The user's bankroll, betting rules, open bets and recent results.",{}),
   fn("add_bet","Add a bet the user placed to their bet log. Only when the user asks or shares a bet slip.",{label:{type:"string",description:"short description incl. book and legs"},odds:{type:"number"},stake:{type:"number"},model_prob:{type:"number"},type:{type:"string",description:"stat type, or Parlay"}},["label","odds","stake"])];
@@ -951,6 +990,43 @@ function ladder(S,stat,vals,adj,m,s,X){
    ${rows.map(x=>{const p=pr(x);return`<tr data-ms="${x}" style="cursor:pointer${x===X?";background:var(--sunk)":""}"><td><b>${x}+</b></td><td class="num">${vals.filter(v=>v>=x).length}/${N}</td><td class="num">${pct(p,1)}</td><td class="num">${fair(p)}</td></tr>`}).join("")}
   </tbody></table></div><p class="hint">If your book pays more than the fair odds on a milestone, that's value. Tap a row to price it.</p></div>`}
 
+// ---------- sportsbook lines (odds.json, pulled by the GitHub workflow from The Odds API)
+const MKT={"Receiving Yards":"player_reception_yds","Receptions":"player_receptions","Rushing Yards":"player_rush_yds","Passing Yards":"player_pass_yds",
+  "Pass Attempts":"player_pass_attempts","Anytime TD (rush + rec)":"player_anytime_td","Rush + Rec Yards":"player_rush_reception_yds"};
+const BKN={draftkings:"DraftKings",fanduel:"FanDuel"};
+let ODDS=null,BOOK=store.get("pf_book","draftkings"),oddsIdx=new Map();
+const whenTxt=s=>{const d=new Date(String(s).replace(/Z$/,s.length<=17?":00Z":"Z"));return isNaN(d)?"":d.toLocaleString(undefined,{weekday:"short",hour:"numeric",minute:"2-digit"})};
+function indexOdds(){oddsIdx.clear();if(!ODDS)return;const cut=Date.now()-60*60*1000;
+  for(const g of ODDS.games||[]){if(new Date(g.t).getTime()<cut)continue;
+    for(const[bk,bv]of Object.entries(g.books||{}))for(const[mk,pl]of Object.entries(bv.m||{}))for(const[name,v]of Object.entries(pl)){
+      const k=nrm(name)+"|"+mk;const e=oddsIdx.get(k)||{};e[bk]={...v,name,fetched:g.fetched,game:`${g.away} at ${g.home}`};oddsIdx.set(k,e)}}}
+function setBook(b){BOOK=b;store.set("pf_book",b);$("book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.b===b));fillLines()}
+$("book").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setBook(b.dataset.b)});
+function linesFor(name,stat){const mk=MKT[stat];return mk?oddsIdx.get(nrm(name)+"|"+mk)||null:null}
+function fillLines(){const h=$("odds-hint");
+  if(!BOOK){h.hidden=true;return}
+  if(!ODDS){h.hidden=false;h.textContent="No sportsbook lines yet. They're pulled Wednesday, Saturday and Sunday evenings once your Odds API key is set up.";return}
+  const name=$("player").value.trim(),stat=$("stat").value;if(!name){h.hidden=true;return}
+  h.hidden=false;
+  if(!MKT[stat]){h.textContent=`${stat} isn't auto-filled (to save credits). Type the line in.`;return}
+  const L=linesFor(name,stat),me=L&&L[BOOK],oth=Object.keys(BKN).find(b=>b!==BOOK),o=L&&L[oth];
+  const ou=v=>v.over!=null||v.under!=null?`${v.over!=null?(MKT[stat]==="player_anytime_td"?"Yes ":"O ")+fmtA(v.over):""}${v.under!=null?(v.over!=null?" / ":"")+(MKT[stat]==="player_anytime_td"?"No ":"U ")+fmtA(v.under):""}`:"";
+  const desc=(bk,v)=>`<b>${BKN[bk]}</b>: ${MKT[stat]==="player_anytime_td"?"":v.line+" · "}${ou(v)}`;
+  if(!L){h.innerHTML=`No ${esc(stat)} line for ${esc(name)} in the latest pull${ODDS.updated?` (${whenTxt(ODDS.updated)})`:""}. His game may not be in the next pull yet, or the books haven't posted it. Type it in.`;return}
+  if(me){
+    if(MODE==="ou"){$("line").value=me.line;$("over").value=me.over!=null?fmtA(me.over):"";$("under").value=me.under!=null?fmtA(me.under):""}
+    else if(MKT[stat]==="player_anytime_td"&&(!$("line").value||$("line").value==="1")){$("line").value="1";$("over").value=me.over!=null?fmtA(me.over):""}
+  }
+  let cmp="";
+  if(me&&o){if(me.line===o.line){const better=s=>me[s]!=null&&o[s]!=null&&me[s]!==o[s]?(dec(me[s])>dec(o[s])?BOOK:oth):null;const bo=better("over"),bu=better("under");
+      const parts=[];if(bo)parts.push(`${BKN[bo]} pays more on the ${MKT[stat]==="player_anytime_td"?"yes":"over"}`);if(bu)parts.push(`${BKN[bu]} pays more on the under`);if(parts.length)cmp="<br>"+parts.join("; ")+"."}
+    else cmp=`<br>Different lines: ${me.line<o.line?BKN[BOOK]:BKN[oth]} is lower (better for the over), ${me.line<o.line?BKN[oth]:BKN[BOOK]} is higher (better for the under).`}
+  h.innerHTML=(me?desc(BOOK,me)+(MODE==="ou"||MKT[stat]==="player_anytime_td"?" (filled in)":""):`${BKN[BOOK]} doesn't offer this.`)+(o?"<br>"+desc(oth,o):"")+cmp+
+    `<br><span style="color:var(--muted)">Pulled ${whenTxt((me||o).fetched)}. Prices move, so confirm in the app before betting.</span>`}
+$("player").addEventListener("change",()=>setTimeout(fillLines,0));
+$("stat").addEventListener("change",fillLines);
+fetch("odds.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d){ODDS=d;indexOdds()}}).catch(()=>{}).finally(()=>{$("book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.b===BOOK))});
+
 // ---------- name autocomplete + clear
 function autocomplete(input,list,xbtn,source,onPick){
   let items=[],sel=-1;
@@ -982,11 +1058,105 @@ autocomplete($("player"),$("player-acl"),$("player-x"),q=>{if(!D)return[];
   return rankNames(arr,q,x=>x.v)},
  it=>{const t=it.p.g[it.p.g.length-1][C.team];
   if(typeof IJ!=="undefined"&&IJ){const g=IJ.games.find(x=>x.a===t||x.h===t);if(g){const o=g.a===t?g.h:g.a;if([...$("opp").options].some(x=>x.value===o))$("opp").value=o}}
-  $("line").focus()});
+  fillLines();$("line").focus()});
 autocomplete($("ij-q"),$("ij-acl"),$("ij-x"),q=>{if(typeof IJ==="undefined"||!IJ)return[];
   return rankNames(IJ.players.map(e=>({v:e.n,sub:`${e.pos} · ${e.t}${e.cur?" · "+(e.gs||e.ps||"listed"):""}`,score:e.cur*10+e.sig,e})),q,x=>x.v)},
  it=>showOne(it.e));
-$("clearform").addEventListener("click",()=>{["player","line","over","under"].forEach(id=>$(id).value="");$("opp").value="";$("player-x").hidden=true;$("out").innerHTML="";$("player").focus()});
+$("clearform").addEventListener("click",()=>{["player","line","over","under"].forEach(id=>$(id).value="");$("opp").value="";$("player-x").hidden=true;$("out").innerHTML="";$("odds-hint").hidden=true;$("player").focus()});
+
+// ---------- Value board: scan every pulled line with the prop model, group by game/team, build same-script parlays
+const MKT_STAT=Object.fromEntries(Object.entries(MKT).map(([s,m])=>[m,s]));
+const SHORT={"Receiving Yards":"rec yds","Receptions":"receptions","Rushing Yards":"rush yds","Passing Yards":"pass yds","Pass Attempts":"pass att","Anytime TD (rush + rec)":"anytime TD","Rush + Rec Yards":"rush+rec yds"};
+let VB={book:store.get("pf_vbook","both"),game:"",script:"",target:1000,legs:null,stamp:""};
+function gameKey(t){const g=IJ&&IJ.games.find(x=>x.a===t||x.h===t);return g?g.a+"@"+g.h:null}
+function scanValue(){
+  if(!ODDS||!D)return[];const out=[];const minE=(R.edge||3)/100;
+  for(const[k,byBook]of oddsIdx){const mk=k.split("|").pop(),stat=MKT_STAT[mk];if(!stat)continue;
+    const name=(Object.values(byBook)[0]||{}).name;const p=findP(name);if(!p)continue;
+    const team=teamNow(p),gk=gameKey(team);if(!gk)continue;const[aw,hm]=gk.split("@"),opp=team===aw?hm:aw;
+    const inj=IJ&&ijByKey.get(nrm(p.n)+"|"+team);if(inj&&inj.cur&&(inj.gs==="Out"||inj.gs==="Doubtful"))continue;
+    const best={};
+    for(const[bk,v]of Object.entries(byBook)){if(VB.book!=="both"&&bk!==VB.book)continue;
+      const r=T_check_prop({player:p.n,stat,line:v.line,over_odds:v.over,under_odds:v.under,opponent:opp});if(r.error)continue;
+      for(const sd of["over","under"]){const x=r[sd];if(x.edge==null)continue;
+        if(!best[sd]||x.edge>best[sd].edge)best[sd]={...x,book:bk,line:v.line,r}}}
+    for(const[sd,x]of Object.entries(best)){if(x.edge<0)continue;
+      const td=mk==="player_anytime_td",side=td?(sd==="over"?"Yes":"No"):(sd==="over"?"Over":"Under");
+      const label=td?`${p.n} ${side==="Yes"?"anytime TD":"no TD"}`:`${p.n} ${side} ${x.line} ${SHORT[stat]}`;
+      const leg={label,player:p.n,pos:p.p,team,opp,game:gk,stat,side,line:x.line,odds:x.odds,p:x.model_prob,edge:x.edge,book:x.book,
+        hit:sd==="over"?x.r.hit_over:x.r.hit_under,n:x.r.games_used,q:inj&&inj.cur&&inj.gs==="Questionable"};
+      leg.flag=x.edge>.10?"edge over 10%: likely missing news":x.r.games_used<(R.games||8)?`only ${x.r.games_used} games of data`:"";
+      leg.value=x.edge>=minE&&!leg.flag;
+      leg.tags=scriptTags(leg);out.push(leg)}}
+  return out.sort((a,b)=>b.edge-a.edge)}
+function scriptTags(l){const over=l.side==="Over"||l.side==="Yes",T=l.team,O=l.opp,t=[];
+  const passVol=["Passing Yards","Pass Attempts","Receiving Yards","Receptions"].includes(l.stat)||(l.stat==="Rush + Rec Yards"&&l.pos!=="RB");
+  const rushVol=l.stat==="Rushing Yards"||(l.stat==="Rush + Rec Yards"&&l.pos==="RB");
+  if(l.stat==="Anytime TD (rush + rec)"){if(over){t.push("shootout");if(l.pos==="RB")t.push(T)}else t.push("grind");return t}
+  if(passVol){t.push(over?"shootout":"grind");if(l.stat!=="Receptions"||over)t.push(over?O:T)}
+  if(rushVol)t.push(over?T:O);
+  return[...new Set(t)]}
+function scriptName(s,gk){if(s==="shootout")return"Shootout";if(s==="grind")return"Low scoring";if(s==="cross")return"Best across games";return`${s} in control`}
+function legLine(l,btn=true){return`<div class="ij" style="cursor:default"><div class="t"><span>${esc(l.label)}</span><span class="pill ${l.edge>=.025?"p-good":l.edge>=.005?"p-warn":"p-mute"}">${l.edge>=0?"+":""}${pct(l.edge,1)}</span></div>
+  <div class="m">${BKN[l.book]} ${fmtA(l.odds)} · model ${pct(l.p)} · hit ${l.hit}/${l.n}${l.q?" · <b>Questionable</b>":""}${l.flag?` · <b>${l.flag}</b>`:""}</div>
+  ${btn?`<div class="rules">${l.tags.map(t=>`<span class="pill p-mute">${t==="shootout"?"Shootout":t==="grind"?"Low scoring":t+" control"}</span>`).join("")}<button type="button" class="btn ghost" style="padding:5px 10px;font-size:.85rem;margin-left:auto" data-vadd="${esc(l.label)}">+ Parlay</button></div>`:""}</div>`}
+function addLegsToParlay(list){let n=0;for(const l of list){if(legs.some(x=>x.label===l.label))continue;legs.push({label:l.label,odds:l.odds,p:l.p,player:l.player,team:l.team,opp:l.opp});n++}
+  saveLegs();renderParlay();return n}
+function buildScript(all,script,gk,target){
+  const tdec=dec(target);let pool;
+  all=all.filter(l=>!l.flag);
+  if(script==="cross"){pool=all.filter(l=>l.value);const out=[],used=new Set();let D0=1;
+    for(const l of pool){if(used.has(l.game))continue;out.push(l);used.add(l.game);D0*=dec(l.odds);if(D0>=tdec||out.length>=6)break}return out}
+  pool=all.filter(l=>l.game===gk&&l.tags.includes(script));const out=[];let D0=1;
+  const OVL=[["Rushing Yards","Rush + Rec Yards"],["Receiving Yards","Rush + Rec Yards"],["Passing Yards","Pass Attempts"]];
+  const ok=l=>!out.some(x=>x.player===l.player&&(x.stat===l.stat||OVL.some(([a,b])=>(x.stat===a&&l.stat===b)||(x.stat===b&&l.stat===a))));
+  for(const pass of[true,false]){for(const l of pool){if(D0>=tdec||out.length>=6)break;if(pass!==l.value||!ok(l))continue;out.push(l);D0*=dec(l.odds)}}
+  return out}
+function renderValue(){
+  const box=$("vb-list"),sum=$("vb-sum");
+  if(!ODDS){sum.textContent="No sportsbook lines yet. They're pulled Wednesday, Saturday and Sunday evenings once your Odds API key is set up.";box.innerHTML="";$("vb-build").innerHTML="";return}
+  if(!D||!IJ){sum.textContent="Loading stats…";return}
+  const all=scanValue(),vals=all.filter(l=>l.value);
+  const games=[...new Set(all.map(l=>l.game))].sort((a,b)=>{const ga=IJ.games.find(g=>g.a+"@"+g.h===a),gb=IJ.games.find(g=>g.a+"@"+g.h===b);return(ga?ga.d+ga.t:"").localeCompare(gb?gb.d+gb.t:"")});
+  const gsel=$("vb-game");const cur=gsel.value;
+  gsel.innerHTML='<option value="">All games</option>'+games.map(g=>{const x=IJ.games.find(z=>z.a+"@"+z.h===g);return`<option value="${g}">${x?fmtGame(x):g.replace("@"," @ ")}</option>`}).join("");gsel.value=games.includes(cur)?cur:"";
+  sum.textContent=`${vals.length} value play${vals.length===1?"":"s"} passing your Log rules (edge ${R.edge}–10%, ${R.games}+ games) across ${games.length} game${games.length===1?"":"s"}. Lines pulled ${whenTxt(ODDS.updated||"")}.`;
+  const shown=vals.filter(l=>!gsel.value||l.game===gsel.value);
+  box.innerHTML=shown.length?games.filter(g=>!gsel.value||g===gsel.value).map(g=>{const gl=shown.filter(l=>l.game===g);if(!gl.length)return"";
+    const x=IJ.games.find(z=>z.a+"@"+z.h===g);const teams=[...new Set(gl.map(l=>l.team))];
+    return`<div class="card" style="padding:12px 14px"><h2>${x?fmtGame(x):g}</h2>${teams.map(t=>`<div><div class="m" style="font-weight:700;margin-top:6px">${t}</div>${gl.filter(l=>l.team===t).map(l=>legLine(l)).join("")}</div>`).join("")}</div>`}).join("")
+    :'<p class="empty">No value plays at your minimum edge in this view. Lower "Min edge" in the Log tab rules to see more.</p>';
+  const fl=all.filter(l=>l.flag&&l.edge>=(R.edge||3)/100&&(!gsel.value||l.game===gsel.value));
+  if(fl.length)box.innerHTML+=`<div class="card" style="padding:12px 14px"><details><summary style="cursor:pointer;font-weight:600">Double-check first (${fl.length})</summary><p class="hint">Big edges or small samples usually mean the model is missing something: an injury, a role change, a new team. Check the news before using these. The script builder leaves them out.</p>${fl.slice(0,40).map(l=>legLine(l)).join("")}</details></div>`;
+  box.querySelectorAll("[data-vadd]").forEach(b=>b.addEventListener("click",()=>{const l=all.find(z=>z.label===b.dataset.vadd);if(l){const n=addLegsToParlay([l]);b.textContent=n?"Added":"In parlay"}}));
+  // script builder
+  const sg=$("vb-sgame");const scur=sg.value;
+  sg.innerHTML=games.map(g=>{const x=IJ.games.find(z=>z.a+"@"+z.h===g);return`<option value="${g}">${x?fmtGame(x):g}</option>`}).join("")+'<option value="*">Across all games (one leg per game)</option>';
+  sg.value=[...games,"*"].includes(scur)?scur:(games.find(g=>vals.filter(l=>l.game===g).length>=2)||games[0]||"*");
+  const gk=sg.value,[aw,hm]=gk==="*"?["",""]:gk.split("@");
+  const scripts=gk==="*"?["cross"]:["shootout","grind",hm,aw];
+  const ssel=$("vb-script");const sc=ssel.value;ssel.innerHTML=scripts.map(s=>`<option value="${s}">${scriptName(s)}</option>`).join("");ssel.value=scripts.includes(sc)?sc:scripts[0];
+  const target=parseOdds($("vb-target").value||"+1000")||1000;
+  const pick=buildScript(all,ssel.value,gk,target);
+  let Dm=1,P=1;pick.forEach(l=>{Dm*=dec(l.odds);P*=l.p});
+  const reached=Dm>=dec(target),sgp=gk!=="*";
+  $("vb-build").innerHTML=pick.length?`${pick.map(l=>legLine(l,false)).join("")}
+   <div class="stats" style="margin-top:8px"><div class="stat"><small>Legs multiplied</small><strong>${fmtA(amer(Dm))}</strong></div><div class="stat"><small>Model chance</small><strong>${pct(P,1)}</strong></div>
+   <div class="stat"><small>Breakeven</small><strong>${pct(1/Dm,1)}</strong></div><div class="stat"><small>EV / $1</small><strong>${(P*Dm-1>=0?"+":"")+(P*Dm-1).toFixed(2)}</strong></div></div>
+   <ul class="notes">${reached?"":`<li class="w">Only reaches ${fmtA(amer(Dm))} with legs that fit this script. Try another script or game, or lower the target.</li>`}
+    ${pick.some(l=>!l.value)?'<li class="w">Some legs are fair-priced rather than value, added to reach the target.</li>':""}
+    ${sgp?"<li>This is a same-game parlay. The legs tell one story, so they tend to win or lose together: the real chance is likely higher than the model's, but the book will also pay less than the legs multiplied. Enter the book's SGP price in the Parlay tab to check value.</li>":"<li>Legs come from different games, so the book should pay close to the full multiplied price.</li>"}
+    <li>Not financial advice. Long parlays lose most of the time, even with value.</li></ul>
+   <button class="btn" type="button" id="vb-add">Send these legs to Parlay</button><p class="hint" id="vb-msg"></p>`
+   :'<p class="empty">No legs with an edge fit this script yet.</p>';
+  const b=$("vb-add");if(b)b.addEventListener("click",()=>{const n=addLegsToParlay(pick);$("vb-msg").textContent=`${n} leg${n===1?"":"s"} added. Open the Parlay tab to enter the book's price.`});
+}
+["vb-game","vb-sgame","vb-script"].forEach(id=>$(id).addEventListener("change",renderValue));
+$("vb-target").addEventListener("change",renderValue);
+$("vb-book").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;VB.book=b.dataset.b;store.set("pf_vbook",VB.book);
+  $("vb-book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));renderValue()});
+$("vb-book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.b===VB.book));
+$("tab-value").addEventListener("click",()=>setTimeout(renderValue,0));
 
 // ---------- wiring
 $("stat").innerHTML=Object.keys(STATS).map(s=>`<option>${s}</option>`).join("");
@@ -994,9 +1164,9 @@ $("stat").addEventListener("change",()=>{const td=STATS[$("stat").value].td;if(t
 $("form").addEventListener("submit",check);
 ["sitepx","boost","stake"].forEach(id=>$(id).addEventListener("input",renderParlay));
 $("clearlegs").addEventListener("click",()=>{legs=[];saveLegs();renderParlay()});
-function tab(which){for(const t of ["check","parlay","log","inj","ask"]){$("tab-"+t).setAttribute("aria-selected",t===which);$("panel-"+t).hidden=t!==which}store.set("pf_tab",which)}
-for(const t of ["check","parlay","log","inj","ask"])$("tab-"+t).addEventListener("click",()=>tab(t));
-{const t=store.get("pf_tab","check");if(["parlay","log","inj","ask"].includes(t))tab(t)}
+function tab(which){for(const t of ["check","value","parlay","log","inj","ask"]){$("tab-"+t).setAttribute("aria-selected",t===which);$("panel-"+t).hidden=t!==which}store.set("pf_tab",which)}
+for(const t of ["check","value","parlay","log","inj","ask"])$("tab-"+t).addEventListener("click",()=>tab(t));
+{const t=store.get("pf_tab","check");if(["value","parlay","log","inj","ask"].includes(t)){tab(t);if(t==="value")setTimeout(()=>{try{renderValue()}catch(e){}},1500)}}
 renderParlay();
 // example so the page opens in a working state
 $("player").value="Bo Nix";$("stat").value="Rushing Yards";$("line").value="13.5";$("over").value="-108";$("under").value="-117";
