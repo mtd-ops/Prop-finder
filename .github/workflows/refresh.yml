@@ -1,0 +1,37 @@
+name: Build and publish Prop Finder
+on:
+  schedule:
+    - cron: "45 10 * * *"   # about 6:45 AM Eastern: fresh stats
+    - cron: "15 22 * * *"   # about 6:15 PM Eastern: that day's practice reports
+  push:
+    branches: [main]        # republish whenever you change a file
+  workflow_dispatch: {}     # "Run workflow" button in the Actions tab
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download stats and injury reports
+        run: |
+          mkdir -p site
+          cp index.html site/
+          python3 build_data.py site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
