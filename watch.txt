@@ -1,0 +1,6 @@
+# Prop Finder: which games to pull lines for (one team per line, # starts a comment).
+# Games "with a story" (spread of 4+ or total of 47+) are pulled automatically.
+# Add a team here to always pull its game, e.g. when you have a promo on it:
+#   JAX
+# Put a minus in front to never pull a team's game, saving credits:
+#   -NYG

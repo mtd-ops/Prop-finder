@@ -507,7 +507,7 @@ function check(e){
      return`<tr><td>${g[0]}</td><td>${g[1]}</td><td>${g[2]}</td><td>${g[3]}</td><td class="num">${v}${g.zero?" ·0-fill":""}</td><td>${r}</td></tr>`}).join("")}
   </tbody></table></div></div>`;
   out.querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=>addLeg(b.dataset.add)));
-  out.querySelectorAll("[data-ms]").forEach(r=>r.addEventListener("click",()=>{setMode("ms");$("line").value=r.dataset.ms;$("over").value="";$("form").scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("over").focus(),300)}));
+  out.querySelectorAll("[data-ms]").forEach(r=>r.addEventListener("click",()=>{setMode("ms");$("line").value=r.dataset.ms;fillLines("line");$("form").scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("over").focus(),300)}));
   wireLogCard();
   out.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
 }
@@ -834,7 +834,8 @@ function setMode(m){MODE=m;$("mode").querySelectorAll("button").forEach(b=>b.set
   $("line-l").textContent=ms?"Milestone":"Line";$("line").placeholder=ms?"90":"13.5";
   $("line-hint").textContent=ms?'Enter 90 for "90+". For an anytime TD, enter 1; for 2+ TDs, enter 2.':'A "91+" milestone is the same as over 90.5. Anytime TD is 0.5.';
   $("over-l").textContent=ms?"Price":"Over price";$("under-wrap").hidden=ms;$("price-hint").hidden=ms;
-  const v=parseFloat($("line").value);if(isFinite(v)){if(ms&&v%1)$("line").value=Math.ceil(v);else if(!ms&&v%1===0)$("line").value=v-.5}}
+  const v=parseFloat($("line").value);if(isFinite(v)){if(ms&&v%1)$("line").value=Math.ceil(v);else if(!ms&&v%1===0)$("line").value=v-.5}
+  if(typeof fillLines==="function")fillLines("mode")}
 $("mode").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setMode(b.dataset.m)});
 function ladderSteps(stat,S,m){
   if(S.td)return[1,2,3];if(stat==="Interceptions")return[1,2,3];
@@ -898,7 +899,7 @@ autocomplete($("player"),$("player-acl"),$("player-x"),q=>{if(!D)return[];
   return rankNames(arr,q,x=>x.v)},
  it=>{refreshStats(it.p);const t=it.p.g[it.p.g.length-1][C.team];
   if(typeof IJ!=="undefined"&&IJ){const g=IJ.games.find(x=>x.a===t||x.h===t);if(g){const o=g.a===t?g.h:g.a;if([...$("opp").options].some(x=>x.value===o))$("opp").value=o}}
-  fillLines();$("line").focus()});
+  fillLines("player");$("line").focus()});
 autocomplete($("ij-q"),$("ij-acl"),$("ij-x"),q=>{if(typeof IJ==="undefined"||!IJ)return[];
   return rankNames(IJ.players.map(e=>({v:e.n,sub:`${e.pos} · ${e.t}${e.cur?" · "+(e.gs||e.ps||"listed"):""}`,score:e.cur*10+e.sig,e})),q,x=>x.v)},
  it=>showOne(it.e));
@@ -1023,6 +1024,9 @@ const TEAM_AB={"Arizona Cardinals":"ARI","Atlanta Falcons":"ATL","Baltimore Rave
 const MKT={"Receiving Yards":"player_reception_yds","Receptions":"player_receptions","Rushing Yards":"player_rush_yds",
  "Rush + Rec Yards":"player_rush_reception_yds","Passing Yards":"player_pass_yds","Pass Attempts":"player_pass_attempts",
  "Anytime TD (rush + rec)":"player_anytime_td"};
+// milestone ladders (X+ = over X-0.5), pulled when the monthly credit budget allows
+const ALT={"Receiving Yards":"player_reception_yds_alternate","Receptions":"player_receptions_alternate","Rushing Yards":"player_rush_yds_alternate",
+ "Rush + Rec Yards":"player_rush_reception_yds_alternate","Passing Yards":"player_pass_yds_alternate"};
 const SHORT={"Receiving Yards":"rec yds","Receptions":"receptions","Rushing Yards":"rush yds","Rush + Rec Yards":"rush + rec yds",
  "Passing Yards":"pass yds","Pass Attempts":"pass att","Anytime TD (rush + rec)":"anytime TD"};
 const BOOKN={draftkings:"DraftKings",fanduel:"FanDuel"};
@@ -1036,30 +1040,71 @@ function indexOdds(){
   for(const g of ODDS.games||[]){g.a=TEAM_AB[g.away];g.h=TEAM_AB[g.home];if(!g.a||!g.h)continue;
     for(const[bk,b]of Object.entries(g.books||{}))for(const[mk,pl]of Object.entries(b.m||{}))for(const[name,c]of Object.entries(pl)){
       const k=nrm(name)+"|"+g.id;let e=oddsIdx.get(k);if(!e){e={name,g,L:{}};oddsIdx.set(k,e)}
-      (e.L[mk]=e.L[mk]||{})[bk]=c}}
+      (e.L[mk]=e.L[mk]||{})[bk]=c}
+    for(const[bk,b]of Object.entries(g.books||{}))for(const[mk,pl]of Object.entries(b.alt||{}))for(const[name,rows]of Object.entries(pl)){
+      const k=nrm(name)+"|"+g.id;let e=oddsIdx.get(k);if(!e){e={name,g,L:{}};oddsIdx.set(k,e)}
+      ((e.A=e.A||{})[mk]=e.A[mk]||{})[bk]=rows}}
 }
 function pByN(){if(!byNrm.size&&D)for(const p of D.players){const k=nrm(p.n);(byNrm.get(k)||byNrm.set(k,[]).get(k)).push(p)}return byNrm}
 const curTeam=p=>p.g[p.g.length-1][C.team];
 function oddsEntry(p){if(!ODDS)return null;const k=nrm(p.n),t=curTeam(p),now=Date.now();let best=null;
   for(const e of oddsIdx.values())if(nrm(e.name)===k&&(e.g.a===t||e.g.h===t)&&(!best||(Date.parse(e.g.t)>now&&Date.parse(best.g.t)<=now)))best=e;return best}
 // refreshStats() uses this to mark which stats have a line
-function linesFor(name,stat){const p=byName.get(name.toLowerCase());if(!p)return null;const e=oddsEntry(p),mk=MKT[stat];return e&&mk&&e.L[mk]?e.L[mk]:null}
-function fillLines(){
+function linesFor(name,stat){const p=byName.get(name.toLowerCase());if(!p)return null;const e=oddsEntry(p);if(!e)return null;
+  const L={...((MKT[stat]&&e.L[MKT[stat]])||{})};for(const bk of Object.keys((ALT[stat]&&e.A&&e.A[ALT[stat]])||{}))L[bk]=L[bk]||{};return Object.keys(L).length?L:null}
+// Fills the line and prices from the latest pull. why: "player", "stat", "book", "mode", "line" (you typed a number) or "reload".
+// Anything it can't find is cleared and named, so a stale price never sits in the boxes.
+const same=(a,b)=>a!=null&&b!=null&&Math.abs(a-b)<1e-6;
+function fillLines(why="stat"){
   const note=$("odds-note");if(!ODDS||!D){note.hidden=true;return}
   const q=$("player").value.trim().toLowerCase(),p=q&&byName.get(q);if(!p){note.hidden=true;return}
-  const e=oddsEntry(p),stat=$("stat").value,L=linesFor(p.n,stat),t=curTeam(p);
-  if(e){const o=e.g.a===t?e.g.h:e.g.a;if([...$("opp").options].some(x=>x.value===o))$("opp").value=o}
+  const e=oddsEntry(p),stat=$("stat").value,t=curTeam(p),ms=MODE==="ms",S=STATS[stat];
+  if(e&&why!=="line"){const o=e.g.a===t?e.g.h:e.g.a;if([...$("opp").options].some(x=>x.value===o))$("opp").value=o}
+  const pick=obj=>obj?(obj[BOOK]?[BOOK,obj[BOOK]]:Object.keys(obj).length?[Object.keys(obj)[0],obj[Object.keys(obj)[0]]]:[null,null]):[null,null];
+  const [bkL,c]=pick(e&&MKT[stat]&&e.L[MKT[stat]]),[bkA,lad0]=pick(e&&ALT[stat]&&e.A&&e.A[ALT[stat]]);
+  const lad=lad0||[],bk=bkL||bkA,bn=bk?BOOKN[bk]:BOOKN[BOOK],other=bk&&bk!==BOOK?` (${BOOKN[BOOK]} doesn't have it)`:"";
+  const setP=(o,u)=>{$("over").value=o!=null?fmtA(o):"";$("under").value=u!=null?fmtA(u):""};
+  const rungs=lad.filter(r=>r[1]!=null).map(r=>[Math.round(r[0]+.5),r[1]]);
+  if(c&&c.line!=null&&c.over!=null&&!rungs.some(r=>same(r[0],c.line+.5)))rungs.push([Math.round(c.line+.5),c.over]);
+  rungs.sort((a,b)=>a[0]-b[0]);
+  const up=e?` · pulled ${when(tstamp(e.g.alt_fetched&&lad.length?e.g.alt_fetched:e.g.fetched))}`:"";
+  let msg="",found=false;
+  if(!e){setP(null,null);if(why!=="line")$("line").value="";
+    const ps=(ODDS.passed||[]).find(x=>TEAM_AB[x.home]===t||TEAM_AB[x.away]===t);
+    msg=ps?`${p.n}'s game (${TEAM_AB[ps.away]} @ ${TEAM_AB[ps.home]}) wasn't pulled: ${ps.why}. Enter the line and price by hand, or add ${t} to watch.txt to pull it next run.`
+      :`No ${BOOKN[BOOK]} lines for ${p.n}'s next game in the latest pull. Enter the line and price by hand.`}
+  else if(!ms){
+    let L=parseFloat($("line").value);
+    if(why!=="line"||!isFinite(L)){L=c&&c.line!=null?c.line:NaN;$("line").value=isFinite(L)?L:""}
+    if(c&&same(L,c.line)){setP(c.over,S.td?null:c.under);found=true;msg=`${bn} line ${c.line} loaded${other}`}
+    else{const r=lad.find(r=>same(r[0],L));
+      if(r&&(r[1]!=null||r[2]!=null)){setP(r[1],S.td?null:r[2]);found=true;msg=`${bn} alt line ${L} loaded${other}`+(r[2]==null&&!S.td?" (no under offered)":"")}
+      else{setP(null,null);msg=!isFinite(L)?`No ${stat.toLowerCase()} line for ${p.n} in the latest pull. Enter the line and prices by hand.`:
+        `No ${bn} price pulled for ${stat.toLowerCase()} ${L}${c&&c.line!=null?` (the main line is ${c.line})`:""}. Enter the prices by hand.`}}}
+  else{
+    let X=parseFloat($("line").value);
+    const has=x=>rungs.some(r=>r[0]===x);
+    if(why!=="line"||!isFinite(X)){
+      if(!(isFinite(X)&&X%1===0&&has(X))){
+        const base=c&&c.line!=null?Math.round(c.line+.5):null;
+        X=base!=null&&has(base)?base:rungs.length?rungs.reduce((a,b)=>Math.abs(b[1]-100)<Math.abs(a[1]-100)?b:a)[0]:(isFinite(X)?Math.ceil(X):NaN)}
+      $("line").value=isFinite(X)?X:""}
+    const r=rungs.find(r=>r[0]===X);
+    if(r){setP(r[1],null);found=true;msg=`${bn} price for ${X}+ loaded${other}`}
+    else{setP(null,null);msg=!isFinite(X)?`No ${stat.toLowerCase()} milestones for ${p.n} in the latest pull. Enter the milestone and price by hand.`:
+      `No ${bn} price pulled for ${X}+ ${stat.toLowerCase()}. Enter it by hand.`}}
   note.hidden=false;
-  if(!L){note.textContent=e?`No line for ${stat.toLowerCase()} in the latest pull. Enter it by hand.`:`No lines for ${p.n}'s next game in the latest pull. Enter them by hand.`;return}
-  const bk=L[BOOK]?BOOK:Object.keys(L)[0],c=L[bk];
-  if(MODE==="ms")setMode("ou");
-  $("line").value=c.line??"";$("over").value=c.over!=null?fmtA(c.over):"";$("under").value=c.under!=null?fmtA(c.under):"";
-  const up=tstamp(e.g.fetched);
-  note.textContent=`${BOOKN[bk]} line loaded${bk!==BOOK?` (${BOOKN[BOOK]} doesn't have this one)`:""} · pulled ${when(up)}. Confirm the price in the app before betting.`;
+  const chips=ms&&rungs.length?`<span class="filt" style="margin-top:6px">${rungs.map(r=>`<button type="button" data-rung="${r[0]}" aria-pressed="${same(r[0],parseFloat($("line").value))}">${r[0]}+ ${fmtA(r[1])}</button>`).join("")}</span>`:"";
+  const ladHint=ms&&e&&!lad.length&&ALT[stat]?" No milestone ladder was pulled for this game (usually the monthly API budget), so only the main line's rung has a price.":"";
+  note.innerHTML=`${found?"✓ ":"⚠ "}${esc(msg)}${found?esc(up)+". Confirm the price in the app before betting.":""}${esc(ladHint)}${chips}`;
+  note.style.color=found?"":"var(--warn)";
 }
+// tapping a milestone chip: keep focus in the line box so its change event doesn't redraw the chips mid-tap
+$("odds-note").addEventListener("pointerdown",e=>{if(e.target.closest("[data-rung]"))e.preventDefault()});
+$("odds-note").addEventListener("click",e=>{const b=e.target.closest("[data-rung]");if(!b)return;$("line").value=b.dataset.rung;fillLines("line")});
 function setBook(b){if(!BOOKN[b])return;BOOK=b;store.set("pf_book",b);
   $("book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.b===b));$("val-book").value=b;
-  fillLines();renderValue();renderScript()}
+  fillLines("book");renderValue();renderScript()}
 $("book").addEventListener("click",e=>{const b=e.target.closest("button");if(b&&b.dataset.b)setBook(b.dataset.b)});
 $("val-book").addEventListener("change",()=>setBook($("val-book").value));
 $("book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.b===BOOK));$("val-book").value=BOOK;
@@ -1117,13 +1162,15 @@ function addValLeg(r,btn){const label=legLabel(r);
 function openCheck(r){const p=byName.get(r.player.toLowerCase());if(!p)return;
   setMode("ou");$("player").value=p.n;$("player-x").hidden=false;refreshStats(p,true);$("stat").value=r.stat;
   if([...$("opp").options].some(x=>x.value===r.opp))$("opp").value=r.opp;
-  fillLines();$("line").value=r.line;if(STATS[r.stat].td)$("under").value="";
+  $("line").value=r.line;fillLines("line");
   tab("check");check()}
 function wireRows(el,rows){
   el.querySelectorAll("[data-vadd]").forEach(b=>b.addEventListener("click",()=>addValLeg(rows[+b.dataset.vadd],b)));
   el.querySelectorAll("[data-vchk]").forEach(b=>b.addEventListener("click",()=>openCheck(rows[+b.dataset.vchk])))}
 function oddsHeader(){const games=(ODDS.games||[]).filter(g=>g.a&&Date.parse(g.t)>Date.now());
-  return`${BOOKN[BOOK]} lines for ${games.length} upcoming game${games.length===1?"":"s"} · last pulled ${when(tstamp(ODDS.checked||ODDS.updated))}${ODDS.remaining!=null?` · ${Math.round(ODDS.remaining)} API credits left`:""}. Prices move, so confirm in the app before betting.`}
+  const ps=(ODDS.passed||[]).filter(x=>Date.parse(x.t)>Date.now());
+  return`${BOOKN[BOOK]} lines for ${games.length} upcoming game${games.length===1?"":"s"} · last pulled ${when(tstamp(ODDS.checked||ODDS.updated))}${ODDS.remaining!=null?` · ${Math.round(ODDS.remaining)} API credits left`:""}. Prices move, so confirm in the app before betting.`+
+    (ps.length?` Not pulled to save credits: ${ps.map(x=>`${TEAM_AB[x.away]} @ ${TEAM_AB[x.home]}`).join(", ")} (add a team to watch.txt to pull its game).`:"")}
 function fillGameSelect(sel,allLabel){const cur=sel.value,games=(ODDS&&ODDS.games||[]).filter(g=>g.a&&Date.parse(g.t)>Date.now());
   sel.innerHTML=(allLabel?`<option value="">${allLabel}</option>`:"")+games.map(g=>`<option value="${esc(g.id)}">${g.a} @ ${g.h} · ${esc(kick(g))}</option>`).join("");
   if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;return games}
@@ -1242,7 +1289,8 @@ function loadOdds(){oddsAt=Date.now();
      ODDS=o;indexOdds();fillGameSelect($("scb-game"));fillScripts();
      if(!D)return;
      if(first){fillLines();const q=$("player").value.trim().toLowerCase(),p=q&&byName.get(q);if(p){refreshStats(p,true);fillLines();check()}}
-     renderValue();renderScript();repriceLegs();renderParlay()})
+     renderValue();renderScript();repriceLegs();renderParlay();
+     if(!first&&$("player").value.trim())fillLines(isFinite(parseFloat($("line").value))?"line":"stat")})
    .catch(()=>{if(ODDS)return;oddsMsg="No sportsbook lines yet. They come from odds.json, which your GitHub refresh builds with your Odds API key.";renderValue();renderScript()})}
 function loadInj(){return fetch("injuries.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
   .then(d=>{if(IJ&&d.updated===IJ.updated)return;IJ=d;indexInj();renderValue();renderScript()}).catch(()=>{})}
@@ -1250,12 +1298,14 @@ loadOdds();
 setInterval(()=>{if(document.visibilityState==="visible")loadOdds()},10*60*1000);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-oddsAt>2*60*1000){loadOdds();if(IJ)loadInj()}});
 
-$("stat").addEventListener("change",fillLines);
-$("player").addEventListener("change",()=>setTimeout(fillLines,0));
+$("stat").addEventListener("change",()=>fillLines("stat"));
+$("player").addEventListener("change",()=>setTimeout(()=>fillLines("player"),0));
+{let tm=null;$("line").addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(()=>fillLines("line"),450)});
+ $("line").addEventListener("change",()=>{clearTimeout(tm);fillLines("line")})}
 
 // ---------- wiring
 $("stat").innerHTML=Object.keys(STATS).map(s=>`<option value="${s}">${s}</option>`).join("");
-$("stat").addEventListener("change",()=>{const td=STATS[$("stat").value].td;if(td){if($("under").value.trim()==="-110")$("under").value="";if(!$("line").value)$("line").value=MODE==="ms"?"1":"0.5"}else if(!$("under").value.trim())$("under").value="-110"});
+$("stat").addEventListener("change",()=>{if(ODDS)return;const td=STATS[$("stat").value].td;if(td&&!$("line").value)$("line").value=MODE==="ms"?"1":"0.5"});
 $("form").addEventListener("submit",check);
 ["sitepx","boost","stake"].forEach(id=>$(id).addEventListener("input",renderParlay));
 $("clearlegs").addEventListener("click",()=>{legs=[];saveLegs();renderParlay()});
@@ -1264,8 +1314,8 @@ for(const t of ["check","val","parlay","log","inj"])$("tab-"+t).addEventListener
 {const t=store.get("pf_tab","check");if(["val","parlay","log","inj"].includes(t))tab(t)}
 renderParlay();
 // example so the page opens in a working state
-$("player").value="Bo Nix";$("stat").value="Rushing Yards";$("line").value="13.5";$("over").value="-108";$("under").value="-117";
-fetch("data.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{D=d;index();$("opp").value="SEA";if(ODDS)fillLines();check();renderValue();renderScript()})
+$("player").value="";
+fetch("data.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{D=d;index();if(ODDS)fillLines("player");renderValue();renderScript()})
  .catch(()=>{$("fresh").textContent="Couldn't load stats. Refresh the page.";$("out").innerHTML='<div class="card empty">The stats file didn\'t load. Refresh the page to try again.</div>'});
 })();
 </script>
