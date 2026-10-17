@@ -1,8 +1,11 @@
 name: Build and publish Prop Finder
 on:
   schedule:
-    - cron: "45 10 * * *"   # about 6:45 AM Eastern: fresh stats + lines for games in the next 36 hours
-    - cron: "15 22 * * *"   # about 6:15 PM Eastern: that day's practice reports
+    # times are UTC; Eastern is 4 hours behind until Nov 1, then 5
+    - cron: "45 10 * * *"   # ~6:45 AM ET daily: fresh stats, and the first pull of lines for that day's games
+    - cron: "15 22 * * *"   # ~6:15 PM ET daily: practice reports; refreshes Thu/Mon night lines before kickoff
+    - cron: "30 15 * * 0"   # ~11:30 AM ET Sunday: refreshes 1 PM lines if the monthly credit budget allows
+    - cron: "45 18 * * 0"   # ~2:45 PM ET Sunday: refreshes 4 PM lines if the budget allows
   push:
     branches: [main]
   workflow_dispatch: {}
