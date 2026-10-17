@@ -1,32 +1,24 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0a0a0b;color:#f4f4f5}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Prop Finder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 /* Layout: one narrow column, phone first; header strip like a yard-line marker, two tabs (Check / Parlay) */
 :root{
-  --bg:#f2f4f1; --surface:#ffffff; --sunk:#e8ece6; --line:#d3dacf;
-  --fg:#18211b; --muted:#5d6b61; --accent:#1d6b45; --accent-ink:#ffffff;
-  --good:#16804a; --good-bg:#dff2e6; --warn:#a86a00; --warn-bg:#fbefd2; --bad:#b33a2e; --bad-bg:#f8e1dd;
-  --head:#123b27; --head-fg:#e9f3ec; --head-dim:#9fbfac;
+  /* one dark palette: near-black, greys, white text, green for good, red for bad */
+  --bg:#0a0a0b; --surface:#141416; --sunk:#1c1c1f; --line:#28282c;
+  --fg:#f4f4f5; --muted:#9b9ba3; --accent:#22c55e; --accent-ink:#03140a;
+  --good:#3ddc84; --good-bg:#0f2418; --warn:#d9a441; --warn-bg:#2a2112; --bad:#f25c5c; --bad-bg:#2b1214;
+  --head:#0a0a0b; --head-fg:#f4f4f5; --head-dim:#85858d;
   --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0e1511; --surface:#16201a; --sunk:#1c2820; --line:#2a3a30;
-  --fg:#e6eee8; --muted:#93a59a; --accent:#4cc286; --accent-ink:#06210f;
-  --good:#5fd394; --good-bg:#14301f; --warn:#e8b54a; --warn-bg:#33270e; --bad:#f08072; --bad-bg:#3a1a16;
-  --head:#0a2417; --head-fg:#e2efe6; --head-dim:#7fa58e; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0e1511; --surface:#16201a; --sunk:#1c2820; --line:#2a3a30;
-  --fg:#e6eee8; --muted:#93a59a; --accent:#4cc286; --accent-ink:#06210f;
-  --good:#5fd394; --good-bg:#14301f; --warn:#e8b54a; --warn-bg:#33270e; --bad:#f08072; --bad-bg:#3a1a16;
-  --head:#0a2417; --head-fg:#e2efe6; --head-dim:#7fa58e; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
 .wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:0 40px}
-header.top{background:var(--head);color:var(--head-fg);padding-block:14px 0;position:relative;overflow:hidden}
+header.top{background:var(--head);color:var(--head-fg);padding-block:14px 0;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
 header.top::after{content:"";position:absolute;left:0;right:0;bottom:44px;height:10px;
   background:repeating-linear-gradient(90deg,var(--head-dim) 0 2px,transparent 2px 22px);opacity:.35}
 .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -48,6 +40,18 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .checks{display:flex;flex-wrap:wrap;gap:8px 16px}
 .checks label{display:flex;align-items:center;gap:8px;font-weight:500;font-size:.88rem;color:var(--fg)}
 .checks input{width:auto}
+/* checkboxes: dark box, green tick when on (no blue fill) */
+input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:none;width:20px;height:20px;padding:0;margin:0;border:1.5px solid #3a3a40;border-radius:6px;background:var(--bg);display:grid;place-content:center;cursor:pointer;transition:border-color .15s}
+input[type=checkbox]::before{content:"";width:10px;height:5px;border-left:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(-45deg) translate(1px,-1px);opacity:0;transition:opacity .15s}
+input[type=checkbox]:checked{border-color:var(--accent)}
+input[type=checkbox]:checked::before{opacity:1}
+details.set{border-top:1px solid var(--line);padding-top:10px}
+details.set>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.85rem;color:var(--muted)}
+details.set>summary::-webkit-details-marker{display:none}
+details.set>summary::after{content:"▾";transition:transform .2s}
+details.set[open]>summary::after{transform:rotate(180deg)}
+details.set>summary b{color:var(--fg);font-weight:600}
+details.set .body{display:grid;gap:12px;padding-top:12px}
 .hint{font-size:.78rem;color:var(--muted);margin:0}
 .btn{font:700 1.05rem var(--f-display);letter-spacing:.06em;text-transform:uppercase;border:0;border-radius:8px;padding:12px 16px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
 .btn.ghost{background:var(--sunk);color:var(--fg)}
@@ -174,15 +178,17 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
     </div>
     <p class="hint" id="price-hint">Leave a price blank if the book only offers one side.</p>
     <p class="hint" id="odds-note" hidden></p>
-    <div class="grid2">
-      <label for="opp">Opponent<select id="opp"><option value="">Pick a team</option></select></label>
-      <label for="ngames">Last N games<input id="ngames" inputmode="numeric" value="8"></label>
-    </div>
-    <div class="checks">
-      <label><input type="checkbox" id="zfill" checked> Count missed games as 0 (not QBs)</label>
-      <label><input type="checkbox" id="qbskip" checked> Skip QB games under 10 attempts</label>
-      <label><input type="checkbox" id="adj" checked> Adjust for opponent defense</label>
-    </div>
+    <label for="opp">Opponent<select id="opp"><option value="">Pick a team</option></select></label>
+    <details class="set" id="modelset"><summary><span><b>Model settings</b> · <span id="ms-sum">8 games · D-adjusted</span></span></summary>
+      <div class="body">
+        <label for="ngames">Last N games<input id="ngames" inputmode="numeric" value="8"></label>
+        <div class="checks" style="flex-direction:column">
+          <label><input type="checkbox" id="zfill" checked> Count missed games as 0 (not QBs)</label>
+          <label><input type="checkbox" id="qbskip" checked> Skip QB games under 10 attempts</label>
+          <label><input type="checkbox" id="adj" checked> Adjust for opponent defense</label>
+        </div>
+      </div>
+    </details>
     <div class="row"><button class="btn" type="submit" id="go">Check prop</button><button class="btn ghost" type="button" id="clearform" style="flex:0 0 auto">Clear</button></div>
   </form>
   <div id="out" class="panel" style="padding-top:0"></div>
@@ -1307,6 +1313,9 @@ $("player").addEventListener("change",()=>setTimeout(()=>fillLines("player"),0))
 $("stat").innerHTML=Object.keys(STATS).map(s=>`<option value="${s}">${s}</option>`).join("");
 $("stat").addEventListener("change",()=>{if(ODDS)return;const td=STATS[$("stat").value].td;if(td&&!$("line").value)$("line").value=MODE==="ms"?"1":"0.5"});
 $("form").addEventListener("submit",check);
+{const sum=()=>{const n=parseInt($("ngames").value)||8,off=[["zfill","misses not 0"],["qbskip","short QB games"]].filter(x=>!$(x[0]).checked).map(x=>x[1]);
+   $("ms-sum").textContent=[`${n} games`,$("adj").checked?"D-adjusted":"no D-adj",...off].join(" · ")};
+ ["ngames","zfill","qbskip","adj"].forEach(id=>$(id).addEventListener("change",sum));sum()}
 ["sitepx","boost","stake"].forEach(id=>$(id).addEventListener("input",renderParlay));
 $("clearlegs").addEventListener("click",()=>{legs=[];saveLegs();renderParlay()});
 function tab(which){for(const t of ["check","val","parlay","log","inj"]){$("tab-"+t).setAttribute("aria-selected",t===which);$("panel-"+t).hidden=t!==which}store.set("pf_tab",which)}
