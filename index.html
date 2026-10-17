@@ -1013,7 +1013,10 @@ $("bk-csv").addEventListener("click",()=>{
 $("bk-out").addEventListener("click",()=>download("prop-finder-backup.json",JSON.stringify({v:1,saved:Date.now(),rules:R,bets,legs},null,1),"application/json"));
 $("bk-in").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;
   try{const d=JSON.parse(await f.text());const have=new Set(bets.map(b=>b.id));let n=0;
-    for(const b of d.bets||[]){if(b&&b.id&&!have.has(b.id)&&isFinite(b.odds)&&b.stake>0){const nb={boost:0,cash:null,close:null,...b};bets.push(nb);n++;
+    // same bet already logged under another id (e.g. typed in by hand): same stake and same payout
+    const pays=b=>Math.round(b.stake*(1+(dec(b.odds)-1)*(1+(+b.boost||0)/100))*100);
+    const dupe=b=>bets.some(x=>x.stake===b.stake&&pays(x)===pays(b));
+    for(const b of d.bets||[]){if(b&&b.id&&!have.has(b.id)&&isFinite(b.odds)&&b.stake>0&&!dupe(b)){const nb={boost:0,cash:null,close:null,...b};bets.push(nb);n++;
       if(betCol){const{id,...body}=nb;q(id,()=>betCol.doc(id).set(body))}}}
     bets.sort((a,b)=>a.at-b.at);if(d.rules){R={...RDEF,...d.rules};saveRules()}if(Array.isArray(d.legs)&&d.legs.length&&!legs.length){legs=d.legs;saveLegs();renderParlay()}
     persistLocal();fillRules();renderLog();$("bk-msg").textContent=`Restored ${n} bet${n===1?"":"s"}.`}
