@@ -426,7 +426,22 @@ function allowed(key,fn,win,pos){ // {team: per-game avg over that defense's las
 function ratioAllowed(key,num,den,win,pos){const a=allowed(key+"n",num,win,pos),b=allowed(key+"d",den,win,pos),o=new Map();for(const[t,v]of a){const d=b.get(t);if(d)o.set(t,v/d)}return o}
 function rankOf(map,team,lowIsGood=true){const v=map.get(team);if(v==null)return null;const vals=[...map.values()];const lg=mean(vals);
   const rank=1+vals.filter(x=>lowIsGood?x<v:x>v).length;return{v,lg,rank,n:vals.length}}
-function oppFactor(kind,opp,win){
+// what this defense allows to players in the same spot: receiving stats by position (WR / TE / RB),
+// rushing split between backs and QBs, passing to QBs. Rank 1 = allows the least (toughest).
+const POSN={WR:"WRs",TE:"TEs",RB:"RBs",QB:"QBs",FB:"RBs"};
+function defMatch(stat,pos,opp,win=8){
+  const S=STATS[stat];if(!S||S.td||!opp)return null;
+  let col,grp,what;
+  if(stat==="Rush + Rec Yards"){col=g=>g[C.ryd]+g[C.cyd];grp=pos==="QB"?"QB":"RB";what="rush + rec yds"}
+  else if(S.k==="rec"){col=stat==="Receptions"?(g=>g[C.rec]):stat==="Targets"?(g=>g[C.tgt]):(g=>g[C.cyd]);grp=pos==="FB"?"RB":pos;what=stat==="Receptions"?"catches":stat==="Targets"?"targets":"rec yds"}
+  else if(S.k==="rush"){col=stat==="Rush Attempts"?(g=>g[C.car]):(g=>g[C.ryd]);grp=pos==="QB"?"QB":"RB";what=stat==="Rush Attempts"?"carries":"rush yds"}
+  else{col=stat==="Pass Attempts"?(g=>g[C.att]):stat==="Pass Completions"?(g=>g[C.comp]):stat==="Interceptions"?(g=>g[C.int]):(g=>g[C.pyd]+(stat==="Pass + Rush Yards"?g[C.ryd]:0));grp="QB";what=stat.toLowerCase()}
+  if(!POSN[grp])return null;
+  const r=rankOf(allowed("mu|"+stat+"|"+grp,col,win,grp),opp);if(!r||!r.lg)return null;
+  return{...r,ratio:r.v/r.lg,label:`${ordinal(r.rank)}/${r.n} vs ${POSN[grp]}`,what,soft:r.rank>r.n*.66,tough:r.rank<=r.n*.33}}
+const ordinal=n=>n+(n%100>=11&&n%100<=13?"th":({1:"st",2:"nd",3:"rd"}[n%10]||"th"));
+function oppFactor(kind,opp,win,pos,stat){
+  if(pos&&stat){const m=defMatch(stat,pos,opp,win);if(m)return Math.min(1.15,Math.max(.85,1+.5*(m.ratio-1)))}
   const keys=kind==="rush"?["ryd"]:kind==="pass"?["pyd"]:["pyd"];
   const fs=keys.map(k=>{const r=rankOf(allowed(k,g=>g[C[k]],win),opp);return r&&r.lg?r.v/r.lg:null}).filter(x=>x);
   if(!fs.length)return 1;return Math.min(1.15,Math.max(.85,1+.5*(mean(fs)-1)));
@@ -451,7 +466,7 @@ function check(e){
   const opts={zfill:$("zfill").checked,qbskip:$("qbskip").checked};
   const all=gamesFor(p,opts),sel=all.slice(-n);
   if(sel.length<2){out.innerHTML='<div class="card empty">Not enough games for this player yet.</div>';return}
-  const vals=sel.map(S.f),f=(opp&&$("adj").checked)?oppFactor(S.k,opp,win):1;
+  const vals=sel.map(S.f),f=(opp&&$("adj").checked)?oppFactor(S.k,opp,win,p.p,stat):1;
   const m0=mean(vals),s0=sd(vals),m=m0*f,s=Math.max(s0*f,.25*m,.3);
   const adj=vals.map(v=>v*f),N=adj.length;
   const emp=[adj.filter(v=>v>line).length/N,adj.filter(v=>v===line).length/N,adj.filter(v=>v<line).length/N];
@@ -467,14 +482,15 @@ function check(e){
   const best=sides.reduce((a,b)=>b.edge>a.edge?b:a);
   const cls=best.edge>=.025?"good":best.edge>=.005?"warn":"bad";
   const sideTxt=x=>ms?x.side:x.side.toLowerCase(),lab=x=>ms?`${x.side}`:`${x.side} ${line}`;
-  const head=cls==="good"?`Value on ${ms?"":"the "}${sideTxt(best)}`:cls==="warn"?`Slight value on ${ms?"":"the "}${sideTxt(best)}`:"No value at this price"+(sides.length>1?"s":"");
+  const head=cls==="good"?`Value on ${ms?"":"the "}${sideTxt(best)}`:cls==="warn"?`Slight value on ${ms?"":"the "}${sideTxt(best)}`:""No value at "+(sides.length>1?"these prices":"this price");
   const team=sel[sel.length-1][C.team];
   last={player:p.n,team,opp,stat,line,sides,pos:p.p,N,ms:X};
   const overs=vals.filter(v=>v>line).length,unders=vals.filter(v=>v<line).length;
   const mx=Math.max(line*1.4,...vals,1);
   const recent=all.map(S.f),avgN=k=>recent.length?mean(recent.slice(-k)):0;
   const notes=[];
-  if(f!==1)notes.push(`Projection ${m.toFixed(1)} is his average ${m0.toFixed(1)} × ${f.toFixed(2)} for the ${opp} defense.`);
+  if(f!==1){const mu=defMatch(stat,p.p,opp);
+    notes.push(`Projection ${m.toFixed(1)} is his average ${m0.toFixed(1)} × ${f.toFixed(2)} for the ${opp} defense`+(mu?`, which ranks ${mu.label} in ${mu.what} allowed (${mu.v.toFixed(1)} a game vs ${mu.lg.toFixed(1)} league average${mu.soft?", a soft matchup":mu.tough?", a tough matchup":""}).`:"."))}
   notes.push(`Chances are blended halfway with the book's own price, because on its own the model ran about 8 points too high in testing (raw model: ${sides.map(x=>`${x.side} ${pct(x.raw)}`).join(", ")}).`);
   if(N<8)notes.push({w:1,t:`Only ${N} games in the sample, so treat the numbers as rough.`});
   if(S.td&&overs<=1&&line<1)notes.push({w:1,t:`He scored in only ${overs} of these ${N} games. One fluke touchdown can make a long shot look like value; check his role before betting.`});
@@ -934,7 +950,7 @@ function sbCands(team,opp,home,allowQ){
     if(p.p!=="QB"&&mean(real.map(z=>z[C.tgt]+z[C.car]))<3)continue;
     const ok=roleStats(p);
     for(const stat of list){if(!ok[stat])continue;const S=STATS[stat];
-      const vals=sel.map(S.f),f=oppFactor(S.k,opp,8),m0=mean(vals),m=m0*f,s=Math.max(sd(vals)*f,.25*m,.3),adj=vals.map(v=>v*f),N=adj.length;
+      const vals=sel.map(S.f),f=oppFactor(S.k,opp,8,p.p,stat),m0=mean(vals),m=m0*f,s=Math.max(sd(vals)*f,.25*m,.3),adj=vals.map(v=>v*f),N=adj.length;
       if(m<=0)continue;
       // stand-in for the book's view: the same recent games without the matchup adjustment.
       // The only edge the builder credits is the opponent's defense (including its injuries), capped at 6 points a leg.
@@ -1121,7 +1137,7 @@ $("book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.
 // Same math as Check prop (last 8 games, missed games as 0, opponent adjustment, blended halfway with the book's no-vig price)
 function evalLine(p,stat,line,o,u,opp){
   const S=STATS[stat],sel=gamesFor(p,{zfill:true,qbskip:true}).slice(-8);if(sel.length<2)return null;
-  const vals=sel.map(S.f),f=opp?oppFactor(S.k,opp,8):1,m0=mean(vals),m=m0*f,s=Math.max(sd(vals)*f,.25*m,.3),adj=vals.map(v=>v*f),N=adj.length;
+  const vals=sel.map(S.f),f=opp?oppFactor(S.k,opp,8,p.p,stat):1,m0=mean(vals),m=m0*f,s=Math.max(sd(vals)*f,.25*m,.3),adj=vals.map(v=>v*f),N=adj.length;
   const emp=[adj.filter(v=>v>line).length/N,adj.filter(v=>v===line).length/N,adj.filter(v=>v<line).length/N];
   const mod=S.td?poisProbs(m,line):normProbs(m,s,line),[po,pp,pu]=emp.map((x,i)=>(x+mod[i])/2);
   const sides=[];
@@ -1147,15 +1163,18 @@ function scanProps(gameId){
       if(best.edge>.10)flags.push("Edge over 10%: the model may be missing something");
       if(r.N<R.games)flags.push(`Only ${r.N} games`);
       if(p.p!=="QB"&&r.use<3)flags.push("Small role");
-      rows.push({player:p.n,pos:p.p,team,opp,g,stat,line:c.line,side:best.side,odds:best.odds,p:best.p,edge:best.edge,hit:best.hit,N:r.N,flags,
+      rows.push({mu:defMatch(stat,p.p,opp),player:p.n,pos:p.p,team,opp,g,stat,line:c.line,side:best.side,odds:best.odds,p:best.p,edge:best.edge,hit:best.hit,N:r.N,flags,
         out:!!(ij&&ij.cur&&(ij.gs==="Out"||ij.gs==="Doubtful"))})}}
   return rows;
 }
 const legLabel=r=>STATS[r.stat].td?`${r.player} anytime TD`:`${r.player} ${r.side} ${r.line} ${SHORT[r.stat]}`;
 const statOk=(r,sf)=>!sf||(sf==="td"?!!STATS[r.stat].td:(!STATS[r.stat].td&&STATS[r.stat].k===sf));
+// "WAS D: 28th/32 vs TEs (soft)" — green when the matchup helps this side, red when it hurts
+function muTxt(r){const m=r.mu;if(!m)return"";const over=r.side!=="Under",helps=over?m.soft:m.tough,hurts=over?m.tough:m.soft;
+  return ` · <span class="${helps?"pos":hurts?"neg":""}">${esc(r.opp)} D ${esc(m.label)}${m.soft?" (soft)":m.tough?" (tough)":""}</span>`}
 function vrow(r,i,btns=true){
   return`<div class="vrow"><div class="t"><span>${esc(legLabel(r))}</span><span class="pill ${r.edge>=R.edge/100?"p-good":r.edge>=0?"p-warn":"p-bad"}">${r.edge>=0?"+":""}${pct(r.edge,1)}</span></div>
-   <div class="m">${BOOKN[BOOK]} ${fmtA(r.odds)} · model ${pct(r.p)} · hit ${r.hit}/${r.N} · ${esc(r.team)} vs ${esc(r.opp)}${r.flags.length?` · <b>${esc(r.flags.join(" · "))}</b>`:""}</div>
+   <div class="m">${BOOKN[BOOK]} ${fmtA(r.odds)} · model ${pct(r.p)} · hit ${r.hit}/${r.N} · ${esc(r.team)} vs ${esc(r.opp)}${muTxt(r)}${r.flags.length?` · <b>${esc(r.flags.join(" · "))}</b>`:""}</div>
    ${btns?`<div class="act"><button type="button" class="mini" data-vadd="${i}">+ Parlay</button><button type="button" class="mini" data-vchk="${i}">Check it</button></div>`:""}</div>`}
 function legFromRow(r){return{label:legLabel(r),odds:r.odds,p:r.p,player:r.player,team:r.team,opp:r.opp,stat:r.stat,line:r.line,side:r.side,gid:r.g.id,book:BOOK}}
 // legs that came from the lines follow new pulls: the price updates unless you typed your own, and a moved line gets flagged
