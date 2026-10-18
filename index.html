@@ -482,7 +482,7 @@ function check(e){
   const best=sides.reduce((a,b)=>b.edge>a.edge?b:a);
   const cls=best.edge>=.025?"good":best.edge>=.005?"warn":"bad";
   const sideTxt=x=>ms?x.side:x.side.toLowerCase(),lab=x=>ms?`${x.side}`:`${x.side} ${line}`;
-  const head=cls==="good"?`Value on ${ms?"":"the "}${sideTxt(best)}`:cls==="warn"?`Slight value on ${ms?"":"the "}${sideTxt(best)}`:""No value at "+(sides.length>1?"these prices":"this price");
+  const head=cls==="good"?`Value on ${ms?"":"the "}${sideTxt(best)}`:cls==="warn"?`Slight value on ${ms?"":"the "}${sideTxt(best)}`:"No value at "+(sides.length>1?"these prices":"this price");
   const team=sel[sel.length-1][C.team];
   last={player:p.n,team,opp,stat,line,sides,pos:p.p,N,ms:X};
   const overs=vals.filter(v=>v>line).length,unders=vals.filter(v=>v<line).length;
