@@ -231,6 +231,19 @@ def main(out_dir=".", force=False):
            "games": sorted(games.values(), key=lambda g: g["t"])}
     with open(path, "w") as fh:
         json.dump(res, fh, separators=(",", ":"))
+    # closing.json: each game's last pull before kickoff, kept 3 weeks, so the app can fill in closing prices
+    # on logged bets and tracked picks after the game has dropped out of odds.json
+    cpath = os.path.join(out_dir, "closing.json")
+    try:
+        closing = {g["id"]: g for g in json.load(open(cpath)).get("games", [])}
+    except Exception:
+        closing = {}
+    for g in games.values():
+        if g.get("books"):
+            closing[g["id"]] = g
+    closing = {k: g for k, g in closing.items() if parse(g["t"]) > t0 - dt.timedelta(days=21)}
+    with open(cpath, "w") as fh:
+        json.dump({"updated": iso(now()), "games": sorted(closing.values(), key=lambda g: g["t"])}, fh, separators=(",", ":"))
     print(f"odds: fetched {fetched} game(s), milestone ladders for {alts}, skipped {skipped} already fresh, "
           f"passed on {len(passed)} to save credits; "
           f"{len(res['games'])} game(s) in odds.json; credits left: {rem if rem is not None else 'unknown'}")

@@ -41,6 +41,7 @@ jobs:
         continue-on-error: true
         run: |
           curl -sfL "${{ steps.pages.outputs.base_url }}/odds.json" -o site/odds.json || rm -f site/odds.json
+          curl -sfL "${{ steps.pages.outputs.base_url }}/closing.json" -o site/closing.json || rm -f site/closing.json
           python3 build_odds.py site
       - uses: actions/upload-pages-artifact@v3
         with:
