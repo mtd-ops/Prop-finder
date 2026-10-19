@@ -423,9 +423,14 @@ function pickGames(p,opts,n,seasonOnly=true){const all=gamesFor(p,opts);
 function seasonHits(p,stat,line,side){const S=STATS[stat],g=gamesFor(p,{zfill:true,qbskip:true}).filter(x=>x[0]===D.latest.season);
   const v=g.map(S.f);return[v.filter(x=>side==="Under"?x<line:x>line).length,v.length]}
 // expected scoring from the spread and total: team implied points vs the slate average, softened, capped at ±8%
-function totalFactor(team){if(!IJ||!IJ.games)return{f:1};const g=IJ.games.find(x=>x.a===team||x.h===team);if(!g||g.tot==null||g.sp==null)return{f:1};
-  const mine=team===g.h?(g.tot+g.sp)/2:(g.tot-g.sp)/2,av=mean(IJ.games.filter(x=>x.tot!=null).map(x=>x.tot/2));
-  return{f:Math.min(1.08,Math.max(.92,1+.5*(mine/av-1))),pts:mine,av}}
+// How much each stat moves with the game's expected scoring, measured within each team in 2025-26 (% per point).
+// Yards follow the team's implied points; attempts and targets barely move with scoring, and pass attempts dip
+// slightly as a team gets more favored (it leads and runs the clock), so counts follow the spread instead.
+const VOLRATE={"Passing Yards":["pts",2.25],"Pass + Rush Yards":["pts",2.2],"Receiving Yards":["pts",2.27],"Rushing Yards":["pts",1.78],"Rush + Rec Yards":["pts",2.0],
+  "Receptions":["pts",1.19],"Pass Completions":["pts",1.17],"Targets":["pts",.46],"Pass Attempts":["sp",-.22],"Rush Attempts":["sp",.53]};
+function totalFactor(team,stat){const r=VOLRATE[stat];if(!r||!IJ||!IJ.games)return{f:1};const g=IJ.games.find(x=>x.a===team||x.h===team);if(!g||g.tot==null||g.sp==null)return{f:1};
+  const mine=team===g.h?(g.tot+g.sp)/2:(g.tot-g.sp)/2,av=mean(IJ.games.filter(x=>x.tot!=null).map(x=>x.tot/2)),sp=team===g.h?g.sp:-g.sp;
+  const d=r[0]==="pts"?mine-av:sp;return{f:Math.min(1.08,Math.max(.92,1+r[1]/100*d)),pts:mine,av,sp,by:r[0]}}
 const VOLUME=new Set(["Receiving Yards","Receptions","Targets","Rushing Yards","Rush Attempts","Rush + Rec Yards","Passing Yards","Pass Attempts","Pass Completions","Pass + Rush Yards"]);
 const GRP={QB:"QB",RB:"RB",FB:"RB",WR:"WR",TE:"TE"};
 // News the stat line can't see: teammates out, the QB out, trades, a role that just changed, wind.
@@ -541,7 +546,7 @@ function check(e){
   const opts={zfill:$("zfill").checked,qbskip:$("qbskip").checked};
   const all=gamesFor(p,opts),sel=pickGames(p,opts,n,$("sonly").checked);
   if(sel.length<2){out.innerHTML='<div class="card empty">Not enough games for this player yet.</div>';return}
-  const tfo=(opp&&$("adj").checked&&VOLUME.has(stat))?totalFactor(curTeam(p)):{f:1},fd=(opp&&$("adj").checked)?oppFactor(S.k,opp,win,p.p,stat):1;
+  const tfo=(opp&&$("adj").checked&&VOLUME.has(stat))?totalFactor(curTeam(p),stat):{f:1},fd=(opp&&$("adj").checked)?oppFactor(S.k,opp,win,p.p,stat):1;
   const vals=sel.map(S.f),f=fd*tfo.f;
   const m0=mean(vals),s0=sd(vals),m=m0*f,s=Math.max(s0*f,.25*m,.3);
   const adj=vals.map(v=>v*f),N=adj.length;
@@ -568,7 +573,8 @@ function check(e){
   const notes=[];
   {const cur=sel.every(g=>g[0]===D.latest.season);notes.push(`Sample: his last ${N} games${cur?" this season":" (this season plus last, since he has under 4 games this season)"}.`)}
   if(!ms&&!S.td){const[h,n2]=seasonHits(p,stat,line,best.side==="Under"?"Under":"Over");if(n2)notes.push(`This season: ${best.side==="Under"?"under":"over"} ${line} in ${h} of ${n2} games (${pct(h/n2)}).`)}
-  if(tfo.pts)notes.push(`${curTeam(p)} is expected to score about ${tfo.pts.toFixed(1)} (slate average ${tfo.av.toFixed(1)}), so volume is scaled ×${tfo.f.toFixed(2)}.`);
+  if(tfo.pts)notes.push(tfo.by==="sp"?`${curTeam(p)} is ${tfo.sp>0?"favored by "+tfo.sp:tfo.sp<0?"a "+(-tfo.sp)+"-point underdog":"a pick'em"}; ${stat.toLowerCase()} ${tfo.sp*(stat==="Pass Attempts"?-1:1)>0?"rise":"dip"} a little with that, so ×${tfo.f.toFixed(2)}.`
+    :`${curTeam(p)} is expected to score about ${tfo.pts.toFixed(1)} (slate average ${tfo.av.toFixed(1)}), so ${stat.toLowerCase()} are scaled ×${tfo.f.toFixed(2)}.`);
   {const cx=context(p,stat,best.side==="Under"?"Under":"Over",curTeam(p),opp);cx.flags.forEach(t=>notes.push({w:1,t}));cx.notes.forEach(t=>notes.push(t))}
   if(fd!==1){const mu=defMatch(stat,p.p,opp);
     notes.push(`Projection ${m.toFixed(1)} is his average ${m0.toFixed(1)} × ${f.toFixed(2)} for the ${opp} defense${tfo.f!==1?" and expected scoring":""}`+(mu?`, which ranks ${mu.label} in ${mu.what} allowed (${mu.v.toFixed(1)} a game vs ${mu.lg.toFixed(1)} league average${mu.soft?", a soft matchup":mu.tough?", a tough matchup":""}).`:"."))}
@@ -1253,7 +1259,7 @@ $("book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.
 // Same math as Check prop (last 8 games, missed games as 0, opponent adjustment, blended halfway with the book's no-vig price)
 function evalLine(p,stat,line,o,u,opp){
   const S=STATS[stat],sel=pickGames(p,{zfill:true,qbskip:true},8);if(sel.length<2)return null;
-  const tf=VOLUME.has(stat)?totalFactor(curTeam(p)).f:1;
+  const tf=VOLUME.has(stat)?totalFactor(curTeam(p),stat).f:1;
   const vals=sel.map(S.f),f=(opp?oppFactor(S.k,opp,8,p.p,stat):1)*tf,m0=mean(vals),m=m0*f,s=Math.max(sd(vals)*f,.25*m,.3),adj=vals.map(v=>v*f),N=adj.length;
   const emp=[adj.filter(v=>v>line).length/N,adj.filter(v=>v===line).length/N,adj.filter(v=>v<line).length/N];
   const mod=curve(stat,S,m,s,line),[po,pp,pu]=emp.map((x,i)=>(x+mod[i])/2);
