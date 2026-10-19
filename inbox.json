@@ -1,0 +1,33 @@
+{
+ "note": "Bets Claude adds to your log. The app copies each one in once.",
+ "bets": [
+  {
+   "id": "dk-639279595485276230",
+   "at": 1792276349000,
+   "label": "DK SGP WAS@SF (BONUS BET, no stake at risk): Purdy O18.5 rush yds; CMC 62+ rush yds; Kittle O64.5 rec yds; Antonio Williams O20.5 rec yds",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 1100,
+   "boost": 0,
+   "p": 0.11,
+   "stake": 10,
+   "close": null,
+   "cash": null,
+   "result": "pending"
+  },
+  {
+   "id": "dk-639280148596593652",
+   "at": 1792418061000,
+   "label": "SGP WAS@SF: Purdy U 30.5 pass att; McLaurin 50+ rec yds; Evans O 5.5 rec; CMC U 37.5 rec yds",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 1400,
+   "boost": 30,
+   "p": 0.1,
+   "stake": 10,
+   "close": null,
+   "cash": null,
+   "result": "pending"
+  }
+ ]
+}

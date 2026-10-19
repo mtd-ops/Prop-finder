@@ -35,6 +35,7 @@ jobs:
         run: |
           mkdir -p site
           cp index.html site/
+          cp inbox.json site/ 2>/dev/null || true
           python3 build_data.py site
       - name: Download DraftKings and FanDuel lines
         if: ${{ env.ODDS_API_KEY != '' }}

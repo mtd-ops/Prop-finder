@@ -1488,9 +1488,17 @@ function loadOdds(){oddsAt=Date.now();
    .catch(()=>{if(ODDS)return;oddsMsg="No sportsbook lines yet. They come from odds.json, which your GitHub refresh builds with your Odds API key.";renderValue();renderScript()})}
 function loadInj(){return fetch("injuries.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
   .then(d=>{if(IJ&&d.updated===IJ.updated)return;IJ=d;indexInj();renderValue();renderScript()}).catch(()=>{})}
-loadOdds();loadClose();
+// bets Claude adds for you land in inbox.json on the site; each one is copied into this browser's log once
+function loadInbox(){return fetch("inbox.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{
+  const seen=new Set(store.get("pf_inbox_seen",[])),have=new Set(bets.map(b=>b.id));let n=0;
+  for(const b of d.bets||[]){if(!b||!b.id||seen.has(b.id))continue;seen.add(b.id);if(have.has(b.id)||!isFinite(b.odds)||!(b.stake>0))continue;
+    const nb={boost:0,cash:null,close:null,side:"",stat:"Other",p:null,result:"pending",legs:null,...b};bets.push(nb);n++;
+    if(betCol){const{id,...body}=nb;q(id,()=>betCol.doc(id).set(body))}}
+  store.set("pf_inbox_seen",[...seen]);
+  if(n){bets.sort((a,b)=>a.at-b.at);persistLocal();renderLog();const el=$("logsync");setTimeout(()=>{if(el)el.textContent=`Added ${n} bet${n>1?"s":""} from Claude to your log.`},50)}}).catch(()=>{})}
+loadOdds();loadClose();loadInbox();
 setInterval(()=>{if(document.visibilityState==="visible"){loadOdds();loadClose()}},10*60*1000);
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-oddsAt>2*60*1000){loadOdds();loadClose();if(IJ)loadInj()}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-oddsAt>2*60*1000){loadOdds();loadClose();loadInbox();if(IJ)loadInj()}});
 
 $("stat").addEventListener("change",()=>fillLines("stat"));
 $("player").addEventListener("change",()=>setTimeout(()=>fillLines("player"),0));
