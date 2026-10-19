@@ -185,7 +185,8 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
         <div class="checks" style="flex-direction:column">
           <label><input type="checkbox" id="zfill" checked> Count missed games as 0 (not QBs)</label>
           <label><input type="checkbox" id="qbskip" checked> Skip QB games under 10 attempts</label>
-          <label><input type="checkbox" id="adj" checked> Adjust for opponent defense</label>
+          <label><input type="checkbox" id="adj" checked> Adjust for opponent defense and expected scoring</label>
+          <label><input type="checkbox" id="sonly" checked> Use only this season once he has 4+ games</label>
         </div>
       </div>
     </details>
@@ -399,6 +400,55 @@ function index(){
   const u=new Date(D.updated.replace("Z",":00Z"));
   $("fresh").textContent=`Stats through ${D.latest.season} Week ${D.latest.week} · updated ${u.toLocaleDateString(undefined,{month:"short",day:"numeric"})}`;
 }
+// Last n games, but this season only once a player has 4+ games this season (last season's role can mislead)
+function pickGames(p,opts,n,seasonOnly=true){const all=gamesFor(p,opts);
+  if(seasonOnly&&D){const cur=all.filter(g=>g[0]===D.latest.season);if(cur.length>=4)return cur.slice(-n)}
+  return all.slice(-n)}
+// this-season hit count for a line: [hits, games]
+function seasonHits(p,stat,line,side){const S=STATS[stat],g=gamesFor(p,{zfill:true,qbskip:true}).filter(x=>x[0]===D.latest.season);
+  const v=g.map(S.f);return[v.filter(x=>side==="Under"?x<line:x>line).length,v.length]}
+// expected scoring from the spread and total: team implied points vs the slate average, softened, capped at ±8%
+function totalFactor(team){if(!IJ||!IJ.games)return{f:1};const g=IJ.games.find(x=>x.a===team||x.h===team);if(!g||g.tot==null||g.sp==null)return{f:1};
+  const mine=team===g.h?(g.tot+g.sp)/2:(g.tot-g.sp)/2,av=mean(IJ.games.filter(x=>x.tot!=null).map(x=>x.tot/2));
+  return{f:Math.min(1.08,Math.max(.92,1+.5*(mine/av-1))),pts:mine,av}}
+const VOLUME=new Set(["Receiving Yards","Receptions","Targets","Rushing Yards","Rush Attempts","Rush + Rec Yards","Passing Yards","Pass Attempts","Pass Completions","Pass + Rush Yards"]);
+const GRP={QB:"QB",RB:"RB",FB:"RB",WR:"WR",TE:"TE"};
+// News the stat line can't see: teammates out, the QB out, trades, a role that just changed, wind.
+// Returns {flags:[...] for the double-check list, notes:[...] that help the bet}
+// the team's regular QB this season: most starts (most attempts in a game = that game's starter), ties to the latest
+function lastStarter(team){const by=new Map();
+  for(const q of D.players){if(q.p!=="QB")continue;for(const g of q.g){if(g[C.team]!==team||g[0]!==D.latest.season)continue;const k=g[1],b=by.get(k);
+    if(!b||g[C.att]>b.a)by.set(k,{a:g[C.att],n:q.n})}}
+  const cnt=new Map();let lastWk=-1,lastN=null;for(const[k,v]of by){cnt.set(v.n,(cnt.get(v.n)||0)+1);if(k>lastWk){lastWk=k;lastN=v.n}}
+  let best=lastN,bc=cnt.get(lastN)||0;for(const[n,c]of cnt)if(c>bc){best=n;bc=c}
+  return best?nrm(best):null}
+function context(p,stat,side,team,opp){
+  const out={flags:[],notes:[]};if(!D)return out;const S=STATS[stat],over=side!=="Under",myG=GRP[p.p],recv=S.k==="rec"||stat==="Rush + Rec Yards";
+  const sameRole=g=>g===myG||(recv&&(g==="WR"||g==="TE")&&(myG==="WR"||myG==="TE"));
+  if(IJ){const outs=IJ.players.filter(e=>e.t===team&&e.cur&&(e.gs==="Out"||e.gs==="Doubtful")&&e.snap>=.35&&nrm(e.n)!==nrm(p.n));
+    const qb=outs.find(e=>e.grp==="QB"&&e.snap>=.5&&nrm(e.n)===lastStarter(team));
+    if(qb&&p.p!=="QB")out.flags.push(`QB ${qb.n} ${qb.gs.toLowerCase()}: backup QB changes the whole offense`);
+    for(const e of outs.filter(e=>e.grp!=="QB"&&sameRole(e.grp)).slice(0,2)){
+      const t=`${e.n} (${e.pos}) ${e.gs.toLowerCase()}: more ${myG==="RB"&&!recv?"carries":"targets"} likely`;over?out.notes.push(t):out.flags.push(t)}
+    const oqb=IJ.players.find(e=>e.t===opp&&e.cur&&e.grp==="QB"&&e.snap>=.5&&(e.gs==="Out"||e.gs==="Doubtful")&&nrm(e.n)===lastStarter(opp));
+    if(oqb)out.notes.push(`${opp} QB ${oqb.n} ${oqb.gs.toLowerCase()}: game script may differ`);}
+  // trades: the player himself, and teammates who just left
+  const last=p.g[p.g.length-1];
+  if(p.ct&&last&&last[0]===D.latest.season&&p.ct!==last[C.team])out.flags.push(`Just moved to ${p.ct}: his numbers are from ${last[C.team]}`);
+  else{const gone=D.players.filter(q=>{const lg=q.g[q.g.length-1];if(!q.ct||!lg||lg[0]!==D.latest.season||lg[C.team]!==team||q.ct===team||q===p)return false;
+      if(!sameRole(GRP[q.p]))return false;const tg=q.g.filter(x=>x[0]===D.latest.season&&x[C.team]===team).slice(-4);return tg.length&&mean(tg.map(x=>x[C.tgt]+x[C.car]))>=4});
+    for(const q of gone.slice(0,2)){const t=`${q.n} left ${team} (now ${q.ct}): his role is up for grabs`;over?out.notes.push(t):out.flags.push(t)}}
+  if(p.rs&&p.rs!=="ACT")out.flags.push(`Roster status ${p.rs} (not active)`);
+  // role change in the last game vs the four before it
+  const use=S.k==="rush"&&stat!=="Rush + Rec Yards"?(g=>g[C.car]):S.k==="pass"?(g=>g[C.att]):(g=>g[C.tgt]),nm=S.k==="rush"&&stat!=="Rush + Rec Yards"?"carries":S.k==="pass"?"attempts":"targets";
+  const g=gamesFor(p,{zfill:true,qbskip:true}).slice(-5);
+  if(g.length>=4){const lastU=use(g[g.length-1]),prev=mean(g.slice(0,-1).map(use));
+    if(lastU>=prev*1.8&&lastU-prev>=3){const t=`Role jump: ${lastU} ${nm} last game vs ${prev.toFixed(1)} before`;over?out.notes.push(t):out.flags.push(t)}
+    else if(lastU<=prev*.5&&prev-lastU>=3){const t=`Role drop: ${lastU} ${nm} last game vs ${prev.toFixed(1)} before`;over?out.flags.push(t):out.notes.push(t)}}
+  // wind hurts passing and receiving
+  const gm=IJ&&IJ.games&&IJ.games.find(x=>x.a===team||x.h===team);
+  if(gm&&gm.wx&&(S.k==="pass"||recv)&&gm.wx.wind>=15){const t=`Wind ${gm.wx.wind} mph (gusts ${gm.wx.gust}) at kickoff`;over?out.flags.push(t):out.notes.push(t)}
+  return out}
 function gamesFor(p,opts){
   let g=p.g.map(x=>x.slice());
   if(p.p==="QB"){if(opts.qbskip)g=g.filter(x=>x[C.att]>=10)}
@@ -464,9 +514,10 @@ function check(e){
     if(o==null&&u==null)throw new Error("Enter at least one price.")}}catch(err){out.innerHTML=`<div class="card empty">${err.message}</div>`;return}
   const n=parseInt($("ngames").value)||8,opp=$("opp").value,win=8;
   const opts={zfill:$("zfill").checked,qbskip:$("qbskip").checked};
-  const all=gamesFor(p,opts),sel=all.slice(-n);
+  const all=gamesFor(p,opts),sel=pickGames(p,opts,n,$("sonly").checked);
   if(sel.length<2){out.innerHTML='<div class="card empty">Not enough games for this player yet.</div>';return}
-  const vals=sel.map(S.f),f=(opp&&$("adj").checked)?oppFactor(S.k,opp,win,p.p,stat):1;
+  const tfo=(opp&&$("adj").checked&&VOLUME.has(stat))?totalFactor(curTeam(p)):{f:1},fd=(opp&&$("adj").checked)?oppFactor(S.k,opp,win,p.p,stat):1;
+  const vals=sel.map(S.f),f=fd*tfo.f;
   const m0=mean(vals),s0=sd(vals),m=m0*f,s=Math.max(s0*f,.25*m,.3);
   const adj=vals.map(v=>v*f),N=adj.length;
   const emp=[adj.filter(v=>v>line).length/N,adj.filter(v=>v===line).length/N,adj.filter(v=>v<line).length/N];
@@ -483,16 +534,20 @@ function check(e){
   const cls=best.edge>=.025?"good":best.edge>=.005?"warn":"bad";
   const sideTxt=x=>ms?x.side:x.side.toLowerCase(),lab=x=>ms?`${x.side}`:`${x.side} ${line}`;
   const head=cls==="good"?`Value on ${ms?"":"the "}${sideTxt(best)}`:cls==="warn"?`Slight value on ${ms?"":"the "}${sideTxt(best)}`:"No value at "+(sides.length>1?"these prices":"this price");
-  const team=sel[sel.length-1][C.team];
-  last={player:p.n,team,opp,stat,line,sides,pos:p.p,N,ms:X};
+  const team=curTeam(p);
+  last={player:p.n,team,opp,stat,line,sides,pos:p.p,N,Nall:all.length,ms:X};
   const overs=vals.filter(v=>v>line).length,unders=vals.filter(v=>v<line).length;
   const mx=Math.max(line*1.4,...vals,1);
   const recent=all.map(S.f),avgN=k=>recent.length?mean(recent.slice(-k)):0;
   const notes=[];
-  if(f!==1){const mu=defMatch(stat,p.p,opp);
-    notes.push(`Projection ${m.toFixed(1)} is his average ${m0.toFixed(1)} × ${f.toFixed(2)} for the ${opp} defense`+(mu?`, which ranks ${mu.label} in ${mu.what} allowed (${mu.v.toFixed(1)} a game vs ${mu.lg.toFixed(1)} league average${mu.soft?", a soft matchup":mu.tough?", a tough matchup":""}).`:"."))}
+  {const cur=sel.every(g=>g[0]===D.latest.season);notes.push(`Sample: his last ${N} games${cur?" this season":" (this season plus last, since he has under 4 games this season)"}.`)}
+  if(!ms&&!S.td){const[h,n2]=seasonHits(p,stat,line,best.side==="Under"?"Under":"Over");if(n2)notes.push(`This season: ${best.side==="Under"?"under":"over"} ${line} in ${h} of ${n2} games (${pct(h/n2)}).`)}
+  if(tfo.pts)notes.push(`${curTeam(p)} is expected to score about ${tfo.pts.toFixed(1)} (slate average ${tfo.av.toFixed(1)}), so volume is scaled ×${tfo.f.toFixed(2)}.`);
+  {const cx=context(p,stat,best.side==="Under"?"Under":"Over",curTeam(p),opp);cx.flags.forEach(t=>notes.push({w:1,t}));cx.notes.forEach(t=>notes.push(t))}
+  if(fd!==1){const mu=defMatch(stat,p.p,opp);
+    notes.push(`Projection ${m.toFixed(1)} is his average ${m0.toFixed(1)} × ${f.toFixed(2)} for the ${opp} defense${tfo.f!==1?" and expected scoring":""}`+(mu?`, which ranks ${mu.label} in ${mu.what} allowed (${mu.v.toFixed(1)} a game vs ${mu.lg.toFixed(1)} league average${mu.soft?", a soft matchup":mu.tough?", a tough matchup":""}).`:"."))}
   notes.push(`Chances are blended halfway with the book's own price, because on its own the model ran about 8 points too high in testing (raw model: ${sides.map(x=>`${x.side} ${pct(x.raw)}`).join(", ")}).`);
-  if(N<8)notes.push({w:1,t:`Only ${N} games in the sample, so treat the numbers as rough.`});
+  if(all.length<R.games)notes.push({w:1,t:`Only ${all.length} games on record, so treat the numbers as rough.`});
   if(S.td&&overs<=1&&line<1)notes.push({w:1,t:`He scored in only ${overs} of these ${N} games. One fluke touchdown can make a long shot look like value; check his role before betting.`});
   {const g8=sel.filter(z=>!z.zero),use=g8.length?mean(g8.map(z=>z[C.tgt]+z[C.car])):0;if(p.p!=="QB"&&use<3)notes.push({w:1,t:`Small role: ${use.toFixed(1)} targets + carries a game. Low-usage players are hard to project.`})}
   if(best.edge>.10)notes.push({w:1,t:"An edge over 10% usually means the model is missing something (injury, role change, small sample). Check before betting."});
@@ -679,7 +734,7 @@ function ruleChecks(x,N){return[
   {ok:!stopHit(),t:"Bankroll above pause line"}]}
 function logCard(){
   if(!last)return"";const s0=last.sides.reduce((a,b)=>b.edge>a.edge?b:a);
-  const checks=ruleChecks(s0,last.N),pass=checks.every(c=>c.ok);
+  const checks=ruleChecks(s0,last.Nall),pass=checks.every(c=>c.ok);
   return `<div class="card"><h2>Log this bet</h2>
    <div class="rules">${checks.map(c=>`<span class="pill ${c.ok?"p-good":"p-bad"}">${c.ok?"✓":"✗"} ${c.t}</span>`).join("")}<span class="pill p-mute">Check the injury report</span></div>
    <p class="hint">${pass?"This bet passes your rules.":"This bet breaks at least one of your rules. A mechanical system skips it."}</p>
@@ -710,6 +765,16 @@ function readRules(){const n=(id,d)=>{const v=parseFloat($(id).value);return isF
   R={bank:n("r-bank",R.bank),mode:$("r-mode").value,flat:n("r-flat",R.flat),cap:n("r-cap",R.cap),edge:n("r-edge",R.edge),games:Math.round(n("r-games",R.games)),stop:n("r-stop",R.stop)};saveRules()}
 const money=v=>(v<0?"-":"")+"$"+Math.abs(v).toFixed(2);
 const sgn=(v,cls=true)=>`<span class="${cls?(v>0?"pos":v<0?"neg":""):""}">${v>0?"+":""}`;
+// Is the model honest? Settled bets with a model %: predicted wins vs actual wins, plus closing-line value.
+function calib(){const s=bets.filter(b=>b.p!=null&&(b.result==="win"||b.result==="loss"));const cl=bets.map(clv).filter(v=>v!=null);
+  if(!s.length)return`<h2 style="margin-top:16px">Model check</h2><p class="hint">Once bets with a model % settle, this compares how often the model expected to win against how often you did.</p>`;
+  const exp=s.reduce((x,b)=>x+b.p,0),won=s.filter(b=>b.result==="win").length,n=s.length;
+  const verdict=n<30?`Only ${n} settled, so this is noise for now. It means something after about 30, and a lot after 100.`:
+    won<exp*.8?"You're winning noticeably less than the model expects: it's running too confident.":won>exp*1.2?"You're winning more than the model expects.":"Wins are close to what the model expects.";
+  return`<h2 style="margin-top:16px">Model check</h2><div class="stats" style="grid-template-columns:repeat(3,1fr)">
+   <div class="stat"><small>Settled</small><strong>${n}</strong></div><div class="stat"><small>Model expected</small><strong>${exp.toFixed(1)} wins</strong></div>
+   <div class="stat"><small>Actual</small><strong>${won} wins</strong></div></div>
+   <p class="hint">${verdict} ${cl.length?`Closing-line value on ${cl.length} bet${cl.length>1?"s":""}: ${(mean(cl)*100).toFixed(1)} points on average (positive = you beat the close, the best early sign of an edge).`:"Enter closing prices on bets to track closing-line value, the best early sign of an edge."}</p>`}
 function renderLog(){
   $("logcount").textContent=bets.filter(b=>b.result==="pending").length;
   const S=bets.filter(settled),W=S.filter(b=>b.result==="win"||(b.result==="cashout"&&profit(b)>0)).length,L=S.filter(b=>b.result==="loss"||(b.result==="cashout"&&profit(b)<0)).length,P=S.length-W-L;
@@ -748,7 +813,7 @@ function renderLog(){
   $("bystat").innerHTML=`<h2>By bet type</h2>`+(groups.size?`<div class="scroll"><table><thead><tr><th>Type</th><th class="num">Bets</th><th class="num">Profit</th><th class="num">ROI</th><th class="num">Avg CLV</th></tr></thead><tbody>${
     [...groups].sort((a,b)=>b[1].length-a[1].length).map(([k,g])=>{const s=g.filter(settled),st=s.reduce((x,b)=>x+b.stake,0),p=s.reduce((x,b)=>x+profit(b),0),cl=g.map(clv).filter(v=>v!=null);
       return`<tr><td>${esc(k)}</td><td class="num">${g.length}</td><td class="num">${sgn(p)}${money(p)}</span></td><td class="num">${st?sgn(p)+pct(p/st,1)+"</span>":"—"}</td><td class="num">${cl.length?sgn(mean(cl))+(mean(cl)*100).toFixed(1)+"</span>":"—"}</td></tr>`}).join("")}</tbody></table></div>
-    <p class="hint">Review monthly. Drop a bet type that keeps losing to the closing line.</p>`:'<p class="empty">Results by stat type show up here.</p>');
+    <p class="hint">Review monthly. Drop a bet type that keeps losing to the closing line.</p>`:'<p class="empty">Results by stat type show up here.</p>')+calib();
 }
 $("bets").addEventListener("change",e=>{const el=e.target,row=el.closest(".bet");if(!row)return;const id=row.dataset.id,k=el.dataset.k;
   if(k==="result")patchBet(id,{result:el.value});
@@ -945,7 +1010,7 @@ function sbCands(team,opp,home,allowQ){
     const list=SB_STATS[p.p];if(!list)continue;
     const ij=ijByKey.get(nrm(p.n)+"|"+team);
     if(ij&&ij.cur&&(ij.gs==="Out"||ij.gs==="Doubtful"||(ij.gs==="Questionable"&&!allowQ))){if(ij.snap>=.4)skipped.push(`${p.n} (${ij.gs})`);continue}
-    const sel=gamesFor(p,{zfill:true,qbskip:true}).slice(-8);if(sel.length<5)continue;
+    const sel=pickGames(p,{zfill:true,qbskip:true},8);if(sel.length<5)continue;
     const real=sel.filter(z=>!z.zero);if(real.length<4)continue;
     if(p.p!=="QB"&&mean(real.map(z=>z[C.tgt]+z[C.car]))<3)continue;
     const ok=roleStats(p);
@@ -1071,7 +1136,7 @@ function indexOdds(){
       ((e.A=e.A||{})[mk]=e.A[mk]||{})[bk]=rows}}
 }
 function pByN(){if(!byNrm.size&&D)for(const p of D.players){const k=nrm(p.n);(byNrm.get(k)||byNrm.set(k,[]).get(k)).push(p)}return byNrm}
-const curTeam=p=>p.g[p.g.length-1][C.team];
+const curTeam=p=>p.ct||p.g[p.g.length-1][C.team];
 function oddsEntry(p){if(!ODDS)return null;const k=nrm(p.n),t=curTeam(p),now=Date.now();let best=null;
   for(const e of oddsIdx.values())if(nrm(e.name)===k&&(e.g.a===t||e.g.h===t)&&(!best||(Date.parse(e.g.t)>now&&Date.parse(best.g.t)<=now)))best=e;return best}
 // refreshStats() uses this to mark which stats have a line
@@ -1136,8 +1201,9 @@ $("book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.
 
 // Same math as Check prop (last 8 games, missed games as 0, opponent adjustment, blended halfway with the book's no-vig price)
 function evalLine(p,stat,line,o,u,opp){
-  const S=STATS[stat],sel=gamesFor(p,{zfill:true,qbskip:true}).slice(-8);if(sel.length<2)return null;
-  const vals=sel.map(S.f),f=opp?oppFactor(S.k,opp,8,p.p,stat):1,m0=mean(vals),m=m0*f,s=Math.max(sd(vals)*f,.25*m,.3),adj=vals.map(v=>v*f),N=adj.length;
+  const S=STATS[stat],sel=pickGames(p,{zfill:true,qbskip:true},8);if(sel.length<2)return null;
+  const tf=VOLUME.has(stat)?totalFactor(curTeam(p)).f:1;
+  const vals=sel.map(S.f),f=(opp?oppFactor(S.k,opp,8,p.p,stat):1)*tf,m0=mean(vals),m=m0*f,s=Math.max(sd(vals)*f,.25*m,.3),adj=vals.map(v=>v*f),N=adj.length;
   const emp=[adj.filter(v=>v>line).length/N,adj.filter(v=>v===line).length/N,adj.filter(v=>v<line).length/N];
   const mod=S.td?poisProbs(m,line):normProbs(m,s,line),[po,pp,pu]=emp.map((x,i)=>(x+mod[i])/2);
   const sides=[];
@@ -1147,7 +1213,7 @@ function evalLine(p,stat,line,o,u,opp){
   const both=sides.length===2?[imp(sides[0].odds),imp(sides[1].odds)]:null;
   sides.forEach((x,i)=>{const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/1.07;x.p=.5*x.p+.5*Math.min(pm,.99);x.edge=x.p-imp(x.odds)});
   const real=sel.filter(z=>!z.zero);
-  return{sides,N,use:real.length?mean(real.map(z=>z[C.tgt]+z[C.car])):0};
+  return{sides,N,Nall:gamesFor(p,{zfill:true,qbskip:true}).length,use:real.length?mean(real.map(z=>z[C.tgt]+z[C.car])):0};
 }
 // every line the chosen book has for upcoming games, best side of each, with red flags
 function scanProps(gameId){
@@ -1161,9 +1227,11 @@ function scanProps(gameId){
       const best=r.sides.reduce((a,b)=>b.edge>a.edge?b:a),flags=[];
       if(onRep)flags.push(ij.gs||({DNP:"Did not practice",Limited:"Limited practice"}[ij.ps]||"On injury report"));
       if(best.edge>.10)flags.push("Edge over 10%: the model may be missing something");
-      if(r.N<R.games)flags.push(`Only ${r.N} games`);
+      if(r.Nall<R.games)flags.push(`Only ${r.Nall} games`);
       if(p.p!=="QB"&&r.use<3)flags.push("Small role");
-      rows.push({mu:defMatch(stat,p.p,opp),player:p.n,pos:p.p,team,opp,g,stat,line:c.line,side:best.side,odds:best.odds,p:best.p,edge:best.edge,hit:best.hit,N:r.N,flags,
+      const cx=context(p,stat,best.side,team,opp);flags.push(...cx.flags);
+      const sh=STATS[stat].td?null:seasonHits(p,stat,c.line,best.side);
+      rows.push({cx:cx.notes,sh,mu:defMatch(stat,p.p,opp),player:p.n,pos:p.p,team,opp,g,stat,line:c.line,side:best.side,odds:best.odds,p:best.p,edge:best.edge,hit:best.hit,N:r.N,flags,
         out:!!(ij&&ij.cur&&(ij.gs==="Out"||ij.gs==="Doubtful"))})}}
   return rows;
 }
@@ -1174,7 +1242,7 @@ function muTxt(r){const m=r.mu;if(!m)return"";const over=r.side!=="Under",helps=
   return ` · <span class="${helps?"pos":hurts?"neg":""}">${esc(r.opp)} D ${esc(m.label)}${m.soft?" (soft)":m.tough?" (tough)":""}</span>`}
 function vrow(r,i,btns=true){
   return`<div class="vrow"><div class="t"><span>${esc(legLabel(r))}</span><span class="pill ${r.edge>=R.edge/100?"p-good":r.edge>=0?"p-warn":"p-bad"}">${r.edge>=0?"+":""}${pct(r.edge,1)}</span></div>
-   <div class="m">${BOOKN[BOOK]} ${fmtA(r.odds)} · model ${pct(r.p)} · hit ${r.hit}/${r.N} · ${esc(r.team)} vs ${esc(r.opp)}${muTxt(r)}${r.flags.length?` · <b>${esc(r.flags.join(" · "))}</b>`:""}</div>
+   <div class="m">${BOOKN[BOOK]} ${fmtA(r.odds)} · model ${pct(r.p)} · hit ${r.hit}/${r.N}${r.sh&&r.sh[1]?` · <span class="${r.sh[0]/r.sh[1]>=.6?"pos":r.sh[0]/r.sh[1]<.45?"neg":""}">this season ${r.sh[0]}/${r.sh[1]}</span>`:""} · ${esc(r.team)} vs ${esc(r.opp)}${muTxt(r)}${r.cx&&r.cx.length?` · <span class="pos">${esc(r.cx.join(" · "))}</span>`:""}${r.flags.length?` · <b>${esc(r.flags.join(" · "))}</b>`:""}</div>
    ${btns?`<div class="act"><button type="button" class="mini" data-vadd="${i}">+ Parlay</button><button type="button" class="mini" data-vchk="${i}">Check it</button></div>`:""}</div>`}
 function legFromRow(r){return{label:legLabel(r),odds:r.odds,p:r.p,player:r.player,team:r.team,opp:r.opp,stat:r.stat,line:r.line,side:r.side,gid:r.g.id,book:BOOK}}
 // legs that came from the lines follow new pulls: the price updates unless you typed your own, and a moved line gets flagged
@@ -1265,6 +1333,8 @@ function buildScript(g,sc,tgt){
   story.forEach(take);neutral.forEach(take);
   const P=pick.reduce((m,r)=>m*r.p,1);return{sc,pick,d,P,ev:pick.length?P*d-1:-1,nu,reached:d>=dec(tgt)}}
 let scbPick=[];
+// DraftKings trims same-game parlays whose legs tell one story. Rough cut from real slips (e.g. +1260 legs → +850 SGP).
+const SGP_CUT=n=>n<=2?.85:n===3?.72:.62;
 function renderScript(){
   const out=$("scb-out");
   if(!ODDS){out.innerHTML=`<p class="empty">${esc(oddsMsg)}</p>`;return}
@@ -1292,9 +1362,9 @@ function renderScript(){
   out.innerHTML=(reason?`<p class="hint"><b>${esc(reason)}</b></p>`:"")+pick.map((x,i)=>vrow(x,i,false).replace(/<\/div>$/,`<div class="m">${x.fit>0?"✓":"•"} ${esc(x.why)}</div></div>`)).join("")+`
    <div class="stats" style="grid-template-columns:repeat(2,1fr)">
     <div class="stat"><small>Legs multiplied</small><strong>${fmtA(amer(d))}</strong></div>
+    <div class="stat"><small>Est. SGP price</small><strong>~${fmtA(amer(1+(d-1)*SGP_CUT(pick.length)))}</strong></div>
     <div class="stat"><small>Model chance</small><strong>${pct(P,1)}</strong></div>
-    <div class="stat"><small>Breakeven</small><strong>${pct(1/d,1)}</strong></div>
-    <div class="stat"><small>EV / $1</small><strong>${ev>=0?"+":""}${ev.toFixed(2)}</strong></div></div>
+    <div class="stat"><small>Take it at</small><strong>${fmtA(amer(1/P))}+</strong></div></div>
    <ul class="notes">
     ${!r.reached?`<li class="w">Only ${pick.length} value leg${pick.length>1?"s":""} fit this script, so the slip tops out at ${fmtA(amer(d))}.</li>`:""}
     ${r.nu?'<li class="w">One leg is neutral: it has value but no link to the story, added to reach the target.</li>':""}
@@ -1335,9 +1405,9 @@ $("player").addEventListener("change",()=>setTimeout(()=>fillLines("player"),0))
 $("stat").innerHTML=Object.keys(STATS).map(s=>`<option value="${s}">${s}</option>`).join("");
 $("stat").addEventListener("change",()=>{if(ODDS)return;const td=STATS[$("stat").value].td;if(td&&!$("line").value)$("line").value=MODE==="ms"?"1":"0.5"});
 $("form").addEventListener("submit",check);
-{const sum=()=>{const n=parseInt($("ngames").value)||8,off=[["zfill","misses not 0"],["qbskip","short QB games"]].filter(x=>!$(x[0]).checked).map(x=>x[1]);
+{const sum=()=>{const n=parseInt($("ngames").value)||8,off=[["zfill","misses not 0"],["qbskip","short QB games"],["sonly","both seasons"]].filter(x=>!$(x[0]).checked).map(x=>x[1]);
    $("ms-sum").textContent=[`${n} games`,$("adj").checked?"D-adjusted":"no D-adj",...off].join(" · ")};
- ["ngames","zfill","qbskip","adj"].forEach(id=>$(id).addEventListener("change",sum));sum()}
+ ["ngames","zfill","qbskip","adj","sonly"].forEach(id=>$(id).addEventListener("change",sum));sum()}
 ["sitepx","boost","stake"].forEach(id=>$(id).addEventListener("input",renderParlay));
 $("clearlegs").addEventListener("click",()=>{legs=[];saveLegs();renderParlay()});
 function tab(which){for(const t of ["check","val","parlay","log","inj"]){$("tab-"+t).setAttribute("aria-selected",t===which);$("panel-"+t).hidden=t!==which}store.set("pf_tab",which)}

@@ -61,6 +61,19 @@ def main(out_dir="."):
         if any(any(x for x in g[4:]) for g in p["g"]):
             plist.append(p)
     plist.sort(key=lambda p: p["n"])
+    # current team and roster status from the weekly rosters, so trades and IR show up before a game is played
+    try:
+        rost = {}
+        for r in get_csv(REL + f"weekly_rosters/roster_weekly_{SEASONS[-1]}.csv"):
+            gid, wk = r.get("gsis_id"), int(r.get("week") or 0)
+            if gid and (gid not in rost or wk >= rost[gid][0]):
+                rost[gid] = (wk, r.get("team"), r.get("status"))
+        for pid, p in players.items():
+            if pid in rost:
+                p["ct"], p["rs"] = rost[pid][1], rost[pid][2]
+        print(f"rosters: current team for {sum('ct' in p for p in plist)} players")
+    except Exception as e:
+        print(f"warning: rosters not loaded ({e})", file=sys.stderr)
     if not plist:
         sys.exit("error: no player stats downloaded; not writing data.json")
     latest = max(((g[0], g[1]) for g in sched), default=(0, 0))
@@ -98,6 +111,37 @@ def prac(s):
     s = (s or "").lower()
     return "DNP" if s.startswith("did not") else "Limited" if s.startswith("limited") else "Full" if s.startswith("full") else ""
 
+# home stadium coordinates (approximate) for the weather lookup
+STADIUM = {"BUF": (42.774, -78.787), "MIA": (25.958, -80.239), "NE": (42.091, -71.264), "NYJ": (40.814, -74.074),
+           "NYG": (40.814, -74.074), "BAL": (39.278, -76.623), "CIN": (39.095, -84.516), "CLE": (41.506, -81.700),
+           "PIT": (40.447, -80.016), "JAX": (30.324, -81.637), "TEN": (36.166, -86.771), "KC": (39.049, -94.484),
+           "DEN": (39.744, -105.020), "CHI": (41.862, -87.617), "GB": (44.501, -88.062), "PHI": (39.901, -75.168),
+           "WAS": (38.908, -76.864), "CAR": (35.226, -80.853), "TB": (27.976, -82.503), "SF": (37.403, -121.970),
+           "SEA": (47.595, -122.332)}
+DOMES = {"ARI", "ATL", "DAL", "DET", "HOU", "IND", "LV", "LA", "LAC", "MIN", "NO"}
+
+def add_weather(games):
+    """Wind/temperature/rain at kickoff for outdoor games. Neutral-site and dome games are skipped."""
+    import json as _j
+    for g in games:
+        roof = (g.get("roof") or "").lower()
+        if g["h"] in DOMES or roof in ("dome", "closed") or g["h"] not in STADIUM or g.get("loc") == "Neutral":
+            continue
+        try:
+            lat, lon = STADIUM[g["h"]]
+            hh = int((g.get("t") or "13:00").split(":")[0])
+            url = (f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+                   f"&hourly=wind_speed_10m,wind_gusts_10m,temperature_2m,precipitation_probability"
+                   f"&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=America%2FNew_York"
+                   f"&start_date={g['d']}&end_date={g['d']}")
+            with urllib.request.urlopen(url, timeout=30) as resp:
+                h = _j.loads(resp.read().decode())["hourly"]
+            i = min(range(len(h["time"])), key=lambda k: abs(int(h["time"][k][11:13]) - hh))
+            g["wx"] = {"wind": round(h["wind_speed_10m"][i]), "gust": round(h["wind_gusts_10m"][i]),
+                       "temp": round(h["temperature_2m"][i]), "rain": h["precipitation_probability"][i]}
+        except Exception as e:
+            print(f"warning: weather for {g['a']} at {g['h']} failed ({e})", file=sys.stderr)
+
 def build_injuries(out_dir, plist, season):
     inj = [r for r in get_csv(REL + f"injuries/injuries_{season}.csv") if (r.get("game_type") or "REG") == "REG"]
     snaps = [r for r in get_csv(REL + f"snap_counts/snap_counts_{season}.csv") if (r.get("game_type") or "REG") == "REG"]
@@ -105,9 +149,11 @@ def build_injuries(out_dir, plist, season):
     unplayed = [int(r["week"]) for r in sched if r["away_score"] in ("", "NA")]
     week = min(unplayed) if unplayed else max(int(r["week"]) for r in inj)
     games = [{"a": r["away_team"], "h": r["home_team"], "d": r["gameday"], "t": r["gametime"], "wd": r["weekday"][:3],
+              "roof": r.get("roof", ""), "loc": r.get("location", ""),
               "sp": float(r["spread_line"]) if r["spread_line"] not in ("", "NA") else None,
               "tot": float(r["total_line"]) if r["total_line"] not in ("", "NA") else None}
              for r in sched if int(r["week"]) == week]
+    add_weather(games)
     opp = {}
     for g in games:
         opp[g["a"]], opp[g["h"]] = g["h"], g["a"]
