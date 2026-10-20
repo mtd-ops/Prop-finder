@@ -224,7 +224,7 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
     <label for="scb-game">Game<select id="scb-game"><option value="">Loading lines…</option></select></label>
     <div class="grid2">
       <label for="scb-script">Script<select id="scb-script"></select></label>
-      <label for="scb-target">Target odds<input id="scb-target" inputmode="numeric" value="+1000"></label>
+      <label for="scb-target">Target odds<input id="scb-target" inputmode="numeric" value="+300"></label>
     </div>
     <label for="scb-style">Legs<select id="scb-style"><option value="val">Best value first (fewer, longer legs)</option><option value="safe">More, safer legs (each +150 or shorter, up to 8)</option></select></label>
     <div id="scb-out"></div>
@@ -351,7 +351,9 @@ let D=null, byName=new Map(), teamWeeks=new Map(), last=null;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let legs=store.get("pf_legs",[]);
 let PICKS=store.get("pf_picks",{}),SLIPS=store.get("pf_slips",{}),CLOSE=null,slipSig="";
-const SLIP_TGT=1000; // the app's own Auto parlay per game, tracked on paper // every value-list pick (this browser), and closing.json
+const SLIP_TGT=1000; // the app's own Auto parlays per game, tracked on paper: +1000 in both leg styles, plus a smaller +300
+const SLIP_KINDS=[[1000,"val",""],[1000,"safe","|safe"],[300,"safe","|300"]];
+const slipKind=x=>(x.tgt||1000)===300?"Small +300":x.style==="safe"?"+1000 safer legs":"+1000 best value"; // every value-list pick (this browser), and closing.json
 // Parlay legs persist to the viewer's private db document when available; browser storage is the fallback.
 let legsRef=null,saving=Promise.resolve(),syncState="local";
 function saveLegs(){
@@ -1414,7 +1416,8 @@ function buildScript(g,sc,tgt,style="val"){const safe=style==="safe",maxL=safe?8
   const order=safe?(a,b)=>b.p-a.p||b.edge-a.edge:(a,b)=>b.edge-a.edge;
   const story=cands.filter(r=>r.fit>0).sort(order),neutral=cands.filter(r=>r.fit===0).sort(order);
   const pick=[],used=new Set();let d=1,td=0,nu=0;
-  const take=r=>{if(d>=dec(tgt)||pick.length>=maxL||used.has(r.player))return;const isTd=!!STATS[r.stat].td;if(isTd&&td)return;
+  // skip a leg that would blow far past the target once there are 2+ legs (a +300 slip shouldn't land at +700)
+  const take=r=>{if(d>=dec(tgt)||pick.length>=maxL||used.has(r.player))return;if(pick.length>=2&&d*dec(r.odds)>dec(tgt)*1.5)return;const isTd=!!STATS[r.stat].td;if(isTd&&td)return;
     if(r.fit===0){if(nu)return;nu++}if(isTd)td++;pick.push({...r,why:legWhy(r,sc,g)});used.add(r.player);d*=dec(r.odds)};
   story.forEach(take);neutral.forEach(take);
   const P=pick.reduce((m,r)=>m*r.p,1);return{sc,style,pick,d,P,ev:pick.length?P*d-1:-1,nu,reached:d>=dec(tgt)}}
@@ -1502,9 +1505,9 @@ function gradeLeg(x){const tg=teamGames(x.season,x.team);if(tg.length<=x.n0)retu
 // paper slips: the Auto script-builder parlay for every game at +1000, frozen at kickoff and graded, bet or not
 function trackSlips(){if(!ODDS||!D)return;const sig=[oddsSeen,IJ&&IJ.updated,D.updated,BOOK,R.edge].join("|");if(sig===slipSig)return;slipSig=sig;
   const now=Date.now();let ch=false;
-  for(const g of ODDS.games||[])for(const style of ["val","safe"]){if(!g.a||Date.parse(g.t)<=now)continue;const A=autoScript(g,SLIP_TGT,style),r=A.all.find(x=>x.sc===A.sc);
-    const k=g.id+"|"+BOOK+(style==="safe"?"|safe":"");if(!A.ok||!r||r.pick.length<2){if(SLIPS[k]&&!SLIPS[k].r){delete SLIPS[k];ch=true}continue}
-    SLIPS[k]={gid:g.id,t:g.t,book:BOOK,style,game:`${g.a} @ ${g.h}`,sc:scName(A.sc,g),at:now,d:r.d,P:r.P,est:1+(r.d-1)*SGP_CUT(r.pick.length),
+  for(const g of ODDS.games||[])for(const[tgt,style,suf]of SLIP_KINDS){if(!g.a||Date.parse(g.t)<=now)continue;const A=autoScript(g,tgt,style),r=A.all.find(x=>x.sc===A.sc);
+    const k=g.id+"|"+BOOK+suf;if(!A.ok||!r||r.pick.length<2){if(SLIPS[k]&&!SLIPS[k].r){delete SLIPS[k];ch=true}continue}
+    SLIPS[k]={gid:g.id,t:g.t,book:BOOK,style,tgt,game:`${g.a} @ ${g.h}`,sc:scName(A.sc,g),at:now,d:r.d,P:r.P,est:1+(r.d-1)*SGP_CUT(r.pick.length),
       legs:r.pick.map(x=>({player:x.player,team:x.team,opp:x.opp,stat:x.stat,line:x.line,side:x.side,o:x.odds,p:x.p,fit:x.fit,season:D.latest.season,n0:teamGames(D.latest.season,x.team).length}))};ch=true}
   if(ch){store.set("pf_slips",SLIPS);gradeSlips()}}
 function gradeSlips(){if(!D)return;let ch=false;
@@ -1517,25 +1520,25 @@ function gradeSlips(){if(!D)return;let ch=false;
     const keep=s.legs.filter(l=>l.r==="hit");s.dWin=keep.reduce((m,l)=>m*dec(l.o),1);s.estWin=1+(s.dWin-1)*SGP_CUT(keep.length||1);ch=true}
   if(ch){store.set("pf_slips",SLIPS);renderLog()}}
 function slipCheck(){const all=Object.values(SLIPS);
-  if(!all.length)return`<h2 style="margin-top:16px">Script builder slips</h2><p class="hint">The app saves its own Auto parlay (aiming for +${SLIP_TGT}) for every game with lines, and grades it after the game, whether you bet it or not. Results show up here.</p>`;
+  if(!all.length)return`<h2 style="margin-top:16px">Script builder slips</h2><p class="hint">The app saves its own Auto parlays (a small +300 and a +1000) for every game with lines, and grades it after the game, whether you bet it or not. Results show up here.</p>`;
   const done=all.filter(s=>s.r==="win"||s.r==="loss").sort((a,b)=>Date.parse(b.t)-Date.parse(a.t)),open=all.filter(s=>!s.r).length,n=done.length,w=done.filter(s=>s.r==="win").length;
   const exp=done.reduce((m,s)=>m+s.P,0),uEst=done.reduce((m,s)=>m+(s.r==="win"?s.estWin-1:-1),0),uMul=done.reduce((m,s)=>m+(s.r==="win"?s.dWin-1:-1),0);
   const legs=done.flatMap(s=>s.legs).filter(l=>l.r==="hit"||l.r==="miss"),lh=legs.filter(l=>l.r==="hit").length,lexp=legs.length?mean(legs.map(l=>l.p)):0;
   const story=legs.filter(l=>l.fit>0),sh=story.filter(l=>l.r==="hit").length;
   return`<h2 style="margin-top:16px">Script builder slips</h2>
-   <p class="hint">The Auto parlay (aiming for +${SLIP_TGT}) for every game with lines, in both leg styles, graded after the game. ${open} waiting on results. ${n<30?`${n} graded so far: parlays swing a lot, so give it 30+ before reading much into it.`:""}</p>
+   <p class="hint">The Auto parlays for every game with lines (a small +300, and +1000 in both leg styles), graded after the game. ${open} waiting on results. ${n<30?`${n} graded so far: parlays swing a lot, so give it 30+ before reading much into it.`:""}</p>
    ${n?`<div class="stats" style="grid-template-columns:repeat(3,1fr)">
     <div class="stat"><small>Record</small><strong>${w}-${n-w}</strong></div><div class="stat"><small>Model expected</small><strong>${exp.toFixed(1)} wins</strong></div>
     <div class="stat"><small>Legs hit</small><strong>${pct(lh/legs.length)}</strong></div>
     <div class="stat"><small>Units at est. SGP</small><strong>${sgn(uEst)}${uEst.toFixed(1)}u</span></strong></div><div class="stat"><small>Units, legs multiplied</small><strong>${sgn(uMul)}${uMul.toFixed(1)}u</span></strong></div>
     <div class="stat"><small>Model said legs hit</small><strong>${pct(lexp)}</strong></div></div>
     <p class="hint">${story.length?`Story legs (the ones that fit the script) hit ${sh} of ${story.length}. `:""}Units are 1 unit per slip. DraftKings' real SGP price is usually somewhere between the two.</p>
-    <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Style</th><th class="num">Slips</th><th class="num">Record</th><th class="num">Expected</th><th class="num">Avg legs</th><th class="num">Units</th></tr></thead><tbody>
-    ${[["val","Best value"],["safe","Safer legs"]].map(([st,lab])=>{const a=done.filter(x=>(x.style||"val")===st);if(!a.length)return"";const ww=a.filter(x=>x.r==="win").length,u=a.reduce((m,x)=>m+(x.r==="win"?x.estWin-1:-1),0);
+    <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Slip</th><th class="num">Slips</th><th class="num">Record</th><th class="num">Expected</th><th class="num">Avg legs</th><th class="num">Units</th></tr></thead><tbody>
+    ${["Small +300","+1000 best value","+1000 safer legs"].map(lab=>{const a=done.filter(x=>slipKind(x)===lab);if(!a.length)return"";const ww=a.filter(x=>x.r==="win").length,u=a.reduce((m,x)=>m+(x.r==="win"?x.estWin-1:-1),0);
       return`<tr><td>${lab}</td><td class="num">${a.length}</td><td class="num">${ww}-${a.length-ww}</td><td class="num">${a.reduce((m,x)=>m+x.P,0).toFixed(1)}</td><td class="num">${mean(a.map(x=>x.legs.length)).toFixed(1)}</td><td class="num">${sgn(u)}${u.toFixed(1)}u</span></td></tr>`}).join("")}
     </tbody></table></div>
-    <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Game</th><th>Style</th><th class="num">Legs</th><th class="num">Price</th><th>Result</th></tr></thead><tbody>
-    ${done.slice(0,12).map(s=>`<tr><td>${esc(s.game)}</td><td>${s.style==="safe"?"Safer":"Value"}</td><td class="num">${s.legs.filter(l=>l.r==="hit").length}/${s.legs.length}</td><td class="num">${fmtA(amer(s.est))}</td><td><span class="pill ${s.r==="win"?"p-good":"p-bad"}">${s.r==="win"?"Win":"Loss"}</span></td></tr>`).join("")}
+    <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Game</th><th>Slip</th><th class="num">Legs</th><th class="num">Price</th><th>Result</th></tr></thead><tbody>
+    ${done.slice(0,12).map(s=>`<tr><td>${esc(s.game)}</td><td>${(s.tgt||1000)===300?"+300":s.style==="safe"?"Safer":"Value"}</td><td class="num">${s.legs.filter(l=>l.r==="hit").length}/${s.legs.length}</td><td class="num">${fmtA(amer(s.est))}</td><td><span class="pill ${s.r==="win"?"p-good":"p-bad"}">${s.r==="win"?"Win":"Loss"}</span></td></tr>`).join("")}
     </tbody></table></div>`:""}`}
 function gradePicks(){if(!D)return;let ch=false;const G=CLOSE?new Map((CLOSE.games||[]).map(g=>[g.id,g])):null,now=Date.now();
   for(const x of Object.values(PICKS)){
