@@ -1509,7 +1509,17 @@ function trackSlips(){if(!ODDS||!D)return;const sig=[oddsSeen,IJ&&IJ.updated,D.u
     const k=g.id+"|"+BOOK+suf;if(!A.ok||!r||r.pick.length<2){if(SLIPS[k]&&!SLIPS[k].r){delete SLIPS[k];ch=true}continue}
     SLIPS[k]={gid:g.id,t:g.t,book:BOOK,style,tgt,game:`${g.a} @ ${g.h}`,sc:scName(A.sc,g),at:now,d:r.d,P:r.P,est:1+(r.d-1)*SGP_CUT(r.pick.length),
       legs:r.pick.map(x=>({player:x.player,team:x.team,opp:x.opp,stat:x.stat,line:x.line,side:x.side,o:x.odds,p:x.p,fit:x.fit,season:D.latest.season,n0:teamGames(D.latest.season,x.team).length}))};ch=true}
+  // all four scripts for every game (+1000, best value), to learn which kind of story actually plays out
+  for(const g of ODDS.games||[]){if(!g.a||Date.parse(g.t)<=now)continue;const ms=marketScript(g),A=autoScript(g,SLIP_TGT,"val");
+    for(const sc of ["h","a","shoot","grind"]){const r=buildScript(g,sc,SLIP_TGT,"val"),k=g.id+"|"+BOOK+"|4|"+sc;
+      if(r.pick.length<2){if(SLIPS[k]&&!SLIPS[k].r){delete SLIPS[k];ch=true}continue}
+      SLIPS[k]={gid:g.id,t:g.t,book:BOOK,style:"val",tgt:SLIP_TGT,four:1,type:scType(sc,g),mkt:!!(ms&&ms.sc===sc),auto:A.ok&&A.sc===sc,game:`${g.a} @ ${g.h}`,sc:scName(sc,g),at:now,d:r.d,P:r.P,est:1+(r.d-1)*SGP_CUT(r.pick.length),
+        legs:r.pick.map(x=>({player:x.player,team:x.team,opp:x.opp,stat:x.stat,line:x.line,side:x.side,o:x.odds,p:x.p,fit:x.fit,season:D.latest.season,n0:teamGames(D.latest.season,x.team).length}))};ch=true}}
   if(ch){store.set("pf_slips",SLIPS);gradeSlips()}}
+// a script in words that carry across games: the favorite or the underdog in control, a shootout or a grind
+function scType(sc,g){if(sc==="shoot")return"Shootout";if(sc==="grind")return"Low-scoring grind";
+  const m=IJ&&IJ.games&&IJ.games.find(x=>x.a===g.a&&x.h===g.h),fav=m&&m.sp?(m.sp>0?"h":"a"):null;
+  return fav?(sc===fav?"Favorite in control":"Underdog in control"):(sc==="h"?"Home in control":"Away in control")}
 function gradeSlips(){if(!D)return;let ch=false;
   for(const s of Object.values(SLIPS)){if(s.r)continue;let wait=false;
     for(const l of s.legs){if(l.r)continue;const g=gradeLeg(l);if(!g){wait=true;continue}Object.assign(l,g);ch=true}
@@ -1519,7 +1529,7 @@ function gradeSlips(){if(!D)return;let ch=false;
     // a void or pushed leg drops out, like the book does: reprice on the legs left
     const keep=s.legs.filter(l=>l.r==="hit");s.dWin=keep.reduce((m,l)=>m*dec(l.o),1);s.estWin=1+(s.dWin-1)*SGP_CUT(keep.length||1);ch=true}
   if(ch){store.set("pf_slips",SLIPS);renderLog()}}
-function slipCheck(){const all=Object.values(SLIPS);
+function slipCheck(){const all=Object.values(SLIPS).filter(s=>!s.four);
   if(!all.length)return`<h2 style="margin-top:16px">Script builder slips</h2><p class="hint">The app saves its own Auto parlays (a small +300 and a +1000) for every game with lines, and grades it after the game, whether you bet it or not. Results show up here.</p>`;
   const done=all.filter(s=>s.r==="win"||s.r==="loss").sort((a,b)=>Date.parse(b.t)-Date.parse(a.t)),open=all.filter(s=>!s.r).length,n=done.length,w=done.filter(s=>s.r==="win").length;
   const exp=done.reduce((m,s)=>m+s.P,0),uEst=done.reduce((m,s)=>m+(s.r==="win"?s.estWin-1:-1),0),uMul=done.reduce((m,s)=>m+(s.r==="win"?s.dWin-1:-1),0);
@@ -1533,13 +1543,29 @@ function slipCheck(){const all=Object.values(SLIPS);
     <div class="stat"><small>Units at est. SGP</small><strong>${sgn(uEst)}${uEst.toFixed(1)}u</span></strong></div><div class="stat"><small>Units, legs multiplied</small><strong>${sgn(uMul)}${uMul.toFixed(1)}u</span></strong></div>
     <div class="stat"><small>Model said legs hit</small><strong>${pct(lexp)}</strong></div></div>
     <p class="hint">${story.length?`Story legs (the ones that fit the script) hit ${sh} of ${story.length}. `:""}Units are 1 unit per slip. DraftKings' real SGP price is usually somewhere between the two.</p>
-    <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Slip</th><th class="num">Slips</th><th class="num">Record</th><th class="num">Expected</th><th class="num">Avg legs</th><th class="num">Units</th></tr></thead><tbody>
+    <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Slip</th><th class="num">N</th><th class="num">W-L</th><th class="num">Exp.</th><th class="num">Legs</th><th class="num">Units</th></tr></thead><tbody>
     ${["Small +300","+1000 best value","+1000 safer legs"].map(lab=>{const a=done.filter(x=>slipKind(x)===lab);if(!a.length)return"";const ww=a.filter(x=>x.r==="win").length,u=a.reduce((m,x)=>m+(x.r==="win"?x.estWin-1:-1),0);
       return`<tr><td>${lab}</td><td class="num">${a.length}</td><td class="num">${ww}-${a.length-ww}</td><td class="num">${a.reduce((m,x)=>m+x.P,0).toFixed(1)}</td><td class="num">${mean(a.map(x=>x.legs.length)).toFixed(1)}</td><td class="num">${sgn(u)}${u.toFixed(1)}u</span></td></tr>`}).join("")}
     </tbody></table></div>
     <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Game</th><th>Slip</th><th class="num">Legs</th><th class="num">Price</th><th>Result</th></tr></thead><tbody>
     ${done.slice(0,12).map(s=>`<tr><td>${esc(s.game)}</td><td>${(s.tgt||1000)===300?"+300":s.style==="safe"?"Safer":"Value"}</td><td class="num">${s.legs.filter(l=>l.r==="hit").length}/${s.legs.length}</td><td class="num">${fmtA(amer(s.est))}</td><td><span class="pill ${s.r==="win"?"p-good":"p-bad"}">${s.r==="win"?"Win":"Loss"}</span></td></tr>`).join("")}
-    </tbody></table></div>`:""}`}
+    </tbody></table></div>`:""}`+fourCheck()}
+// every game's four scripts side by side: which story the legs actually told
+function fourCheck(){const all=Object.values(SLIPS).filter(s=>s.four),done=all.filter(s=>s.r==="win"||s.r==="loss");
+  const head=`<h2 style="margin-top:16px">All four scripts</h2>`;
+  if(!all.length)return head+`<p class="hint">For every game, the app also saves the +${SLIP_TGT} slip for each of the four scripts (favorite in control, underdog in control, shootout, low-scoring grind) and grades them all. Over time this shows which kind of story the legs really follow, and whether the market's script (★) is the one to bet.</p>`;
+  const row=(lab,a)=>{if(!a.length)return"";const w=a.filter(x=>x.r==="win").length,u=a.reduce((m,x)=>m+(x.r==="win"?x.estWin-1:-1),0),lg=a.flatMap(x=>x.legs).filter(l=>l.r==="hit"||l.r==="miss");
+    return`<tr><td>${esc(lab)}</td><td class="num">${a.length}</td><td class="num">${w}-${a.length-w}</td><td class="num">${a.reduce((m,x)=>m+x.P,0).toFixed(1)}</td><td class="num">${lg.length?pct(lg.filter(l=>l.r==="hit").length/lg.length):"—"}</td><td class="num">${sgn(u)}${u.toFixed(1)}u</span></td></tr>`};
+  const types=["Favorite in control","Underdog in control","Shootout","Low-scoring grind","Home in control","Away in control"];
+  const games=[...new Set(done.map(s=>s.gid))].map(id=>done.filter(s=>s.gid===id)).sort((a,b)=>Date.parse(b[0].t)-Date.parse(a[0].t)).slice(0,8);
+  const cell=(gs,t)=>{const x=gs.find(s=>s.type===t);return x?`<span class="${x.r==="win"?"pos":"neg"}">${x.legs.filter(l=>l.r==="hit").length}/${x.legs.length}${x.r==="win"?" ✓":""}</span>${x.mkt?" ★":""}`:"—"};
+  return head+`<p class="hint">The +${SLIP_TGT} slip for each script in every game, graded. ${all.length-done.length} waiting on results. ★ = the script the spread and total pointed to.</p>
+   ${done.length?`<div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Script</th><th class="num">N</th><th class="num">W-L</th><th class="num">Exp.</th><th class="num">Legs hit</th><th class="num">Units</th></tr></thead><tbody>
+    ${types.map(t=>row(t,done.filter(s=>s.type===t))).join("")}${row("★ Market's script",done.filter(s=>s.mkt))}${row("Auto's pick",done.filter(s=>s.auto))}
+   </tbody></table></div>
+   <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Game</th><th>Fav</th><th>Dog</th><th>Shoot</th><th>Grind</th></tr></thead><tbody>
+    ${games.map(gs=>`<tr><td>${esc(gs[0].game)}</td><td>${cell(gs,"Favorite in control")}</td><td>${cell(gs,"Underdog in control")}</td><td>${cell(gs,"Shootout")}</td><td>${cell(gs,"Low-scoring grind")}</td></tr>`).join("")}
+   </tbody></table></div><p class="hint">Each cell is legs hit / legs in that script's slip; ✓ means the whole slip hit.</p>`:""}`}
 function gradePicks(){if(!D)return;let ch=false;const G=CLOSE?new Map((CLOSE.games||[]).map(g=>[g.id,g])):null,now=Date.now();
   for(const x of Object.values(PICKS)){
     if(x.c===undefined&&G&&Date.parse(x.t)<=now){const g=G.get(x.gid);if(g){x.c=legPrice(g,x);ch=true}}
