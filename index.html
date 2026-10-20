@@ -560,7 +560,7 @@ function check(e){
   if(u!=null)sides.push({side:"Under",p:pp<1?pu/(1-pp):0,odds:u});
   // Blend the model halfway toward the book's no-vig price: the backtest showed the raw model ran ~8 points too confident.
   {const both=sides.length===2?[imp(sides[0].odds),imp(sides[1].odds)]:null;
-   sides.forEach((x,i)=>{x.raw=x.p;const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/1.07;x.p=.5*x.p+.5*Math.min(pm,.99)})}
+   sides.forEach((x,i)=>{x.raw=x.p;const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/(ms?1.12:1.07);x.p=.5*x.p+.5*Math.min(pm,.99)})}
   sides.forEach(x=>{x.need=imp(x.odds);x.edge=x.p-x.need;x.ev=x.p*(dec(x.odds)-1)-(1-x.p)});
   const best=sides.reduce((a,b)=>b.edge>a.edge?b:a);
   const cls=best.edge>=.025?"good":best.edge>=.005?"warn":"bad";
@@ -1261,7 +1261,7 @@ $("val-book").addEventListener("change",()=>setBook($("val-book").value));
 $("book").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.b===BOOK));$("val-book").value=BOOK;
 
 // Same math as Check prop (last 8 games, missed games as 0, opponent adjustment, blended halfway with the book's no-vig price)
-function evalLine(p,stat,line,o,u,opp){
+function evalLine(p,stat,line,o,u,opp,vig=1.07){
   const S=STATS[stat],sel=pickGames(p,{zfill:true,qbskip:true},8);if(sel.length<2)return null;
   const tf=VOLUME.has(stat)?totalFactor(curTeam(p),stat).f:1;
   const vals=sel.map(S.f),f=(opp?oppFactor(S.k,opp,8,p.p,stat):1)*tf,m0=mean(vals),m=m0*f,s=Math.max(sd(vals)*f,.25*m,.3),adj=vals.map(v=>v*f),N=adj.length;
@@ -1272,7 +1272,7 @@ function evalLine(p,stat,line,o,u,opp){
   if(u!=null)sides.push({side:"Under",p:pp<1?pu/(1-pp):0,odds:u,hit:vals.filter(v=>v<line).length});
   if(!sides.length)return null;
   const both=sides.length===2?[imp(sides[0].odds),imp(sides[1].odds)]:null;
-  sides.forEach((x,i)=>{const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/1.07;x.p=.5*x.p+.5*Math.min(pm,.99);x.edge=x.p-imp(x.odds)});
+  sides.forEach((x,i)=>{const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/vig;x.p=.5*x.p+.5*Math.min(pm,.99);x.edge=x.p-imp(x.odds)});
   const real=sel.filter(z=>!z.zero);
   return{sides,N,vals,Nall:gamesFor(p,{zfill:true,qbskip:true}).length,use:real.length?mean(real.map(z=>z[C.tgt]+z[C.car])):0};
 }
@@ -1294,6 +1294,18 @@ function scanProps(gameId){
       {const b=boom(stat,best.side,c.line,r.vals);if(b)flags.push(b)}
       const sh=STATS[stat].td?null:seasonHits(p,stat,c.line,best.side);
       rows.push({cx:cx.notes,sh,mu:defMatch(stat,p.p,opp),player:p.n,pos:p.p,team,opp,g,stat,line:c.line,side:best.side,odds:best.odds,p:best.p,edge:best.edge,hit:best.hit,N:r.N,flags,
+        out:!!(ij&&ij.cur&&(ij.gs==="Out"||ij.gs==="Doubtful"))})}
+    // milestones (X+ = over X-0.5) from the ladder: the best-value rung per player and stat, priced -500 to +500
+    for(const[stat,mk]of Object.entries(ALT)){const lad=e.A&&e.A[mk]&&e.A[mk][BOOK];if(!lad)continue;const main=e.L[MKT[stat]]&&e.L[MKT[stat]][BOOK];let bb=null;
+      for(const rr of lad){const L=rr[0],o=rr[1];if(L==null||o==null||o>500||o<-500||(main&&same(main.line,L)))continue;
+        const r=evalLine(p,stat,L,o,null,opp,1.12);if(!r)continue;const x=r.sides[0];if(!bb||x.edge>bb.x.edge)bb={r,x,L}}
+      if(!bb)continue;const{r,x,L}=bb,flags=[];
+      if(onRep)flags.push(ij.gs||({DNP:"Did not practice",Limited:"Limited practice"}[ij.ps]||"On injury report"));
+      if(x.edge>.10)flags.push("Edge over 10%: the model may be missing something");
+      if(r.Nall<R.games)flags.push(`Only ${r.Nall} games`);
+      if(p.p!=="QB"&&r.use<3)flags.push("Small role");
+      const cx=context(p,stat,"Over",team,opp);flags.push(...cx.flags);
+      rows.push({cx:cx.notes,sh:seasonHits(p,stat,L,"Over"),mu:defMatch(stat,p.p,opp),player:p.n,pos:p.p,team,opp,g,stat,line:L,side:"Over",ms:Math.round(L+.5),odds:x.odds,p:x.p,edge:x.edge,hit:x.hit,N:r.N,flags,
         out:!!(ij&&ij.cur&&(ij.gs==="Out"||ij.gs==="Doubtful"))})}}
   return rows;
 }
@@ -1302,7 +1314,7 @@ const ATT=new Set(["Pass Attempts","Rush Attempts"]);
 const underOk=r=>r.side!=="Under"||ATT.has(r.stat)||!$("uatt").checked;
 function boom(stat,side,line,vals){if(side!=="Under"||!/Yards/.test(stat)||!vals||vals.length<4||line<=0)return null;
   const k=vals.filter(v=>v>=line*1.5).length;return k>=2&&k/vals.length>=.25?`Boom risk: ${Math.round(line*1.5)}+ in ${k} of his last ${vals.length} (one big play beats this under)`:null}
-const legLabel=r=>STATS[r.stat].td?`${r.player} anytime TD`:`${r.player} ${r.side} ${r.line} ${SHORT[r.stat]}`;
+const legLabel=r=>STATS[r.stat].td?`${r.player} anytime TD`:r.ms?`${r.player} ${r.ms}+ ${SHORT[r.stat]}`:`${r.player} ${r.side} ${r.line} ${SHORT[r.stat]}`;
 const statOk=(r,sf)=>!sf||(sf==="td"?!!STATS[r.stat].td:(!STATS[r.stat].td&&STATS[r.stat].k===sf));
 // "WAS D: 28th/32 vs TEs (soft)" — green when the matchup helps this side, red when it hurts
 function muTxt(r){const m=r.mu;if(!m)return"";const over=r.side!=="Under",helps=over?m.soft:m.tough,hurts=over?m.tough:m.soft;
@@ -1311,10 +1323,13 @@ function vrow(r,i,btns=true){
   return`<div class="vrow"><div class="t"><span>${esc(legLabel(r))}</span><span class="pill ${r.edge>=R.edge/100?"p-good":r.edge>=0?"p-warn":"p-bad"}">${r.edge>=0?"+":""}${pct(r.edge,1)}</span></div>
    <div class="m">${BOOKN[BOOK]} ${fmtA(r.odds)} · model ${pct(r.p)} · hit ${r.hit}/${r.N}${r.sh&&r.sh[1]?` · <span class="${r.sh[0]/r.sh[1]>=.6?"pos":r.sh[0]/r.sh[1]<.45?"neg":""}">this season ${r.sh[0]}/${r.sh[1]}</span>`:""} · ${esc(r.team)} vs ${esc(r.opp)}${muTxt(r)}${r.cx&&r.cx.length?` · <span class="pos">${esc(r.cx.join(" · "))}</span>`:""}${r.flags.length?` · <b>${esc(r.flags.join(" · "))}</b>`:""}</div>
    ${btns?`<div class="act"><button type="button" class="mini" data-vadd="${i}">+ Parlay</button><button type="button" class="mini" data-vchk="${i}">Check it</button></div>`:""}</div>`}
-function legFromRow(r){return{label:legLabel(r),odds:r.odds,p:r.p,player:r.player,team:r.team,opp:r.opp,stat:r.stat,line:r.line,side:r.side,gid:r.g.id,book:BOOK}}
+function legFromRow(r){return{label:legLabel(r),odds:r.odds,p:r.p,player:r.player,team:r.team,opp:r.opp,stat:r.stat,line:r.line,side:r.side,ms:r.ms||null,gid:r.g.id,book:BOOK}}
 // legs that came from the lines follow new pulls: the price updates unless you typed your own, and a moved line gets flagged
 function repriceLegs(){if(!ODDS)return false;let ch=false;
-  for(const l of legs){if(!l.gid||!l.stat||!MKT[l.stat])continue;const e=oddsIdx.get(nrm(l.player)+"|"+l.gid),c=e&&e.L[MKT[l.stat]]&&e.L[MKT[l.stat]][l.book||BOOK];
+  for(const l of legs){if(!l.gid||!l.stat||!MKT[l.stat])continue;
+    if(l.ms){const e=oddsIdx.get(nrm(l.player)+"|"+l.gid),lad=e&&e.A&&ALT[l.stat]&&e.A[ALT[l.stat]]&&e.A[ALT[l.stat]][l.book||BOOK],rr=lad&&lad.find(x=>same(x[0],l.line));
+      if(rr&&rr[1]!=null&&!l.edited&&rr[1]!==l.odds){l.odds=rr[1];ch=true}continue}
+    const e=oddsIdx.get(nrm(l.player)+"|"+l.gid),c=e&&e.L[MKT[l.stat]]&&e.L[MKT[l.stat]][l.book||BOOK];
     const mv=c&&c.line!=null&&c.line!==l.line?`Line moved to ${c.line}`:"";if(mv!==(l.moved||"")){l.moved=mv;ch=true}
     if(!c||mv||l.edited)continue;const px=l.side==="Under"?c.under:c.over;
     if(px!=null&&px!==l.odds){l.odds=px;ch=true}}
@@ -1323,9 +1338,9 @@ function addValLeg(r,btn){const label=legLabel(r);
   if(legs.some(l=>l.label===label)){if(btn)btn.textContent="Already in parlay";return}
   legs.push(legFromRow(r));saveLegs();renderParlay();if(btn)btn.textContent="Added ✓"}
 function openCheck(r){const p=byName.get(r.player.toLowerCase());if(!p)return;
-  setMode("ou");$("player").value=p.n;$("player-x").hidden=false;refreshStats(p,true);$("stat").value=r.stat;
+  setMode(r.ms?"ms":"ou");$("player").value=p.n;$("player-x").hidden=false;refreshStats(p,true);$("stat").value=r.stat;
   if([...$("opp").options].some(x=>x.value===r.opp))$("opp").value=r.opp;
-  $("line").value=r.line;fillLines("line");
+  $("line").value=r.ms||r.line;fillLines("line");
   tab("check");check()}
 function wireRows(el,rows){
   el.querySelectorAll("[data-vadd]").forEach(b=>b.addEventListener("click",()=>addValLeg(rows[+b.dataset.vadd],b)));
@@ -1467,7 +1482,7 @@ const teamGames=(season,team)=>{const wk=teamWeeks.get(season+"|"+team);return w
 let pickSig="";
 function trackPicks(){if(!ODDS||!D)return;const sig=[oddsSeen,IJ&&IJ.updated,D.updated,BOOK,R.edge].join("|");if(sig===pickSig)return;pickSig=sig;
   const now=Date.now(),cut=R.edge/100;let ch=false;
-  for(const r of scanProps("")){const k=[r.g.id,nrm(r.player),r.stat,BOOK].join("|");let x=PICKS[k];const val=r.edge>=cut;
+  for(const r of scanProps("")){const k=[r.g.id,nrm(r.player),r.stat+(r.ms?" ms":""),BOOK].join("|");let x=PICKS[k];const val=r.edge>=cut;
     if(!x&&!val)continue;
     if(x&&(x.line!==r.line||x.side!==r.side)){if(!val)continue;x=null} // the line moved: it counts at the new number only if it's still value
     if(!x)x=PICKS[k]={player:r.player,team:r.team,opp:r.opp,stat:r.stat,line:r.line,side:r.side,gid:r.g.id,t:r.g.t,book:BOOK,o0:r.odds,at:now,
