@@ -187,6 +187,7 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
           <label><input type="checkbox" id="zfill" checked> Count missed games as 0 (not QBs)</label>
           <label><input type="checkbox" id="qbskip" checked> Skip QB games under 10 attempts</label>
           <label><input type="checkbox" id="adj" checked> Adjust for opponent defense and expected scoring</label>
+          <label><input type="checkbox" id="uatt"> Unders only on pass and rush attempts (other unders stay off Best value and the script builder, but are still tracked)</label>
           <label><input type="checkbox" id="sonly" checked> Drop last season's games once he has 4+ this season (before that, both seasons count)</label>
         </div>
       </div>
@@ -445,7 +446,7 @@ function lastStarter(team){const by=new Map();
   return best?nrm(best):null}
 function context(p,stat,side,team,opp){
   const out={flags:[],notes:[]};if(!D)return out;const S=STATS[stat],over=side!=="Under",myG=GRP[p.p],recv=S.k==="rec"||stat==="Rush + Rec Yards";
-  const sameRole=g=>g===myG||(recv&&(g==="WR"||g==="TE")&&(myG==="WR"||myG==="TE"));
+  const sameRole=g=>g===myG||(recv&&(g==="WR"||g==="TE"||g==="RB"));
   if(IJ){const outs=IJ.players.filter(e=>e.t===team&&e.cur&&(e.gs==="Out"||e.gs==="Doubtful")&&e.snap>=.35&&nrm(e.n)!==nrm(p.n));
     const qb=outs.find(e=>e.grp==="QB"&&e.snap>=.5&&nrm(e.n)===lastStarter(team));
     if(qb&&p.p!=="QB")out.flags.push(`QB ${qb.n} ${qb.gs.toLowerCase()}: backup QB changes the whole offense`);
@@ -579,6 +580,7 @@ function check(e){
   {const cx=context(p,stat,best.side==="Under"?"Under":"Over",curTeam(p),opp);cx.flags.forEach(t=>notes.push({w:1,t}));cx.notes.forEach(t=>notes.push(t))}
   if(fd!==1){const mu=defMatch(stat,p.p,opp);
     notes.push(`Projection ${m.toFixed(1)} is his average ${m0.toFixed(1)} × ${f.toFixed(2)} for the ${opp} defense${tfo.f!==1?" and expected scoring":""}`+(mu?`, which ranks ${mu.label} in ${mu.what} allowed (${mu.v.toFixed(1)} a game vs ${mu.lg.toFixed(1)} league average${mu.soft?", a soft matchup":mu.tough?", a tough matchup":""}).`:"."))}
+  {const b=boom(stat,best.side==="Under"?"Under":"Over",line,vals);if(b)notes.push({w:1,t:b})}
   if(SKEW.has(stat))notes.push(`Yards are lopsided, so the curve is centered on his typical game, not the average: median ${median(vals).toFixed(1)} vs average ${m0.toFixed(1)}.`);
   notes.push(`Chances are blended halfway with the book's own price, because on its own the model ran about 8 points too high in testing (raw model: ${sides.map(x=>`${x.side} ${pct(x.raw)}`).join(", ")}).`);
   if(all.length<R.games)notes.push({w:1,t:`Only ${all.length} games on record, so treat the numbers as rough.`});
@@ -1272,7 +1274,7 @@ function evalLine(p,stat,line,o,u,opp){
   const both=sides.length===2?[imp(sides[0].odds),imp(sides[1].odds)]:null;
   sides.forEach((x,i)=>{const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/1.07;x.p=.5*x.p+.5*Math.min(pm,.99);x.edge=x.p-imp(x.odds)});
   const real=sel.filter(z=>!z.zero);
-  return{sides,N,Nall:gamesFor(p,{zfill:true,qbskip:true}).length,use:real.length?mean(real.map(z=>z[C.tgt]+z[C.car])):0};
+  return{sides,N,vals,Nall:gamesFor(p,{zfill:true,qbskip:true}).length,use:real.length?mean(real.map(z=>z[C.tgt]+z[C.car])):0};
 }
 // every line the chosen book has for upcoming games, best side of each, with red flags
 function scanProps(gameId){
@@ -1289,11 +1291,17 @@ function scanProps(gameId){
       if(r.Nall<R.games)flags.push(`Only ${r.Nall} games`);
       if(p.p!=="QB"&&r.use<3)flags.push("Small role");
       const cx=context(p,stat,best.side,team,opp);flags.push(...cx.flags);
+      {const b=boom(stat,best.side,c.line,r.vals);if(b)flags.push(b)}
       const sh=STATS[stat].td?null:seasonHits(p,stat,c.line,best.side);
       rows.push({cx:cx.notes,sh,mu:defMatch(stat,p.p,opp),player:p.n,pos:p.p,team,opp,g,stat,line:c.line,side:best.side,odds:best.odds,p:best.p,edge:best.edge,hit:best.hit,N:r.N,flags,
         out:!!(ij&&ij.cur&&(ij.gs==="Out"||ij.gs==="Doubtful"))})}}
   return rows;
 }
+// yardage unders can die on one long play: flag when he's gone way past the line in a real share of games
+const ATT=new Set(["Pass Attempts","Rush Attempts"]);
+const underOk=r=>r.side!=="Under"||ATT.has(r.stat)||!$("uatt").checked;
+function boom(stat,side,line,vals){if(side!=="Under"||!/Yards/.test(stat)||!vals||vals.length<4||line<=0)return null;
+  const k=vals.filter(v=>v>=line*1.5).length;return k>=2&&k/vals.length>=.25?`Boom risk: ${Math.round(line*1.5)}+ in ${k} of his last ${vals.length} (one big play beats this under)`:null}
 const legLabel=r=>STATS[r.stat].td?`${r.player} anytime TD`:`${r.player} ${r.side} ${r.line} ${SHORT[r.stat]}`;
 const statOk=(r,sf)=>!sf||(sf==="td"?!!STATS[r.stat].td:(!STATS[r.stat].td&&STATS[r.stat].k===sf));
 // "WAS D: 28th/32 vs TEs (soft)" — green when the matchup helps this side, red when it hurts
@@ -1334,7 +1342,7 @@ function renderValue(){
   if(!ODDS){fresh.textContent=oddsMsg;list.innerHTML=`<p class="empty">${esc(oddsMsg)}</p>`;dcEl.hidden=true;$("valcount").textContent=0;return}
   if(!D){fresh.textContent="Stats are still loading.";return}
   fresh.textContent=oddsHeader();fillGameSelect($("val-game"),"All games");
-  const all=scanProps($("val-game").value).filter(r=>r.edge>=R.edge/100&&statOk(r,valStat));
+  const all=scanProps($("val-game").value).filter(r=>r.edge>=R.edge/100&&statOk(r,valStat)&&underOk(r));
   const good=all.filter(r=>!r.flags.length).sort((a,b)=>b.edge-a.edge).slice(0,60),dc=all.filter(r=>r.flags.length).sort((a,b)=>b.edge-a.edge);
   $("valcount").textContent=good.length;
   list.innerHTML=good.length?`<h2 style="margin-bottom:4px">Best value</h2>`+good.map((r,i)=>vrow(r,i)).join(""):
@@ -1385,7 +1393,7 @@ function fillScripts(){const g=(ODDS&&ODDS.games||[]).find(x=>x.id===$("scb-game
   sel.value=cur&&[...sel.options].some(o=>o.value===cur)?cur:"auto"}
 // value legs that fit the script, story legs first; at most one neutral leg and one TD leg, one leg per player
 function buildScript(g,sc,tgt){
-  const cands=scanProps(g.id).filter(r=>!r.flags.length&&!r.out&&r.edge>=R.edge/100).map(r=>({...r,fit:legFit(r,sc,g)})).filter(r=>r.fit>=0);
+  const cands=scanProps(g.id).filter(r=>!r.flags.length&&!r.out&&r.edge>=R.edge/100&&underOk(r)).map(r=>({...r,fit:legFit(r,sc,g)})).filter(r=>r.fit>=0);
   const story=cands.filter(r=>r.fit>0).sort((a,b)=>b.edge-a.edge),neutral=cands.filter(r=>r.fit===0).sort((a,b)=>b.edge-a.edge);
   const pick=[],used=new Set();let d=1,td=0,nu=0;
   const take=r=>{if(d>=dec(tgt)||pick.length>=6||used.has(r.player))return;const isTd=!!STATS[r.stat].td;if(isTd&&td)return;
@@ -1396,7 +1404,7 @@ let scbPick=[];
 // what Auto picks for a game: the market's script if it has 2+ value legs, else the best-value script that doesn't contradict it
 function autoScript(g,tgt){const all=["h","a","shoot","grind"].map(sc=>buildScript(g,sc,tgt)),ms=marketScript(g);
   // never fall back to the underdog running the game when the market has a clear favorite
-  const contra=x=>ms&&((ms.sc==="h"&&x.sc==="a")||(ms.sc==="a"&&x.sc==="h"));
+  const contra=x=>ms&&((ms.sc==="h"&&x.sc==="a")||(ms.sc==="a"&&x.sc==="h")||(ms.sc==="grind"&&x.sc==="shoot")||(ms.sc==="shoot"&&x.sc==="grind"));
   const best=all.filter(x=>x.pick.length>=2&&!contra(x)).sort((x,y)=>(y.reached-x.reached)||(y.ev-x.ev))[0];
   const m=ms&&all.find(x=>x.sc===ms.sc&&x.pick.length>=2);
   if(m)return{all,ms,sc:m.sc,ok:true,reason:`Picked ${scName(m.sc,g)} because ${ms.why}, so it's the game the market expects.`};
@@ -1552,8 +1560,10 @@ $("stat").innerHTML=Object.keys(STATS).map(s=>`<option value="${s}">${s}</option
 $("stat").addEventListener("change",()=>{if(ODDS)return;const td=STATS[$("stat").value].td;if(td&&!$("line").value)$("line").value=MODE==="ms"?"1":"0.5"});
 $("form").addEventListener("submit",check);
 {const sum=()=>{const n=parseInt($("ngames").value)||8,off=[["zfill","misses not 0"],["qbskip","short QB games"],["sonly","both seasons"]].filter(x=>!$(x[0]).checked).map(x=>x[1]);
-   $("ms-sum").textContent=[`${n} games`,$("adj").checked?"D-adjusted":"no D-adj",...off].join(" · ")};
- ["ngames","zfill","qbskip","adj","sonly"].forEach(id=>$(id).addEventListener("change",sum));sum()}
+   $("ms-sum").textContent=[`${n} games`,$("adj").checked?"D-adjusted":"no D-adj",...off,...($("uatt").checked?["unders: attempts only"]:[])].join(" · ")};
+ $("uatt").checked=store.get("pf_uatt",true);
+ $("uatt").addEventListener("change",()=>{store.set("pf_uatt",$("uatt").checked);slipSig="";renderValue();renderScript()});
+ ["ngames","zfill","qbskip","adj","sonly","uatt"].forEach(id=>$(id).addEventListener("change",sum));sum()}
 ["sitepx","boost","stake"].forEach(id=>$(id).addEventListener("input",renderParlay));
 $("clearlegs").addEventListener("click",()=>{legs=[];saveLegs();renderParlay()});
 function tab(which){for(const t of ["check","val","parlay","log","inj"]){$("tab-"+t).setAttribute("aria-selected",t===which);$("panel-"+t).hidden=t!==which}store.set("pf_tab",which)}
