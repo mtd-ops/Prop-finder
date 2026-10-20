@@ -149,6 +149,7 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
       <button role="tab" id="tab-val" aria-selected="false" aria-controls="panel-val">Value<span class="count" id="valcount">0</span></button>
       <button role="tab" id="tab-parlay" aria-selected="false" aria-controls="panel-parlay">Parlay<span class="count" id="legcount">0</span></button>
       <button role="tab" id="tab-log" aria-selected="false" aria-controls="panel-log">Log<span class="count" id="logcount">0</span></button>
+      <button role="tab" id="tab-model" aria-selected="false" aria-controls="panel-model">Model<span class="count" id="modelcount">0</span></button>
       <button role="tab" id="tab-inj" aria-selected="false" aria-controls="panel-inj">Injuries<span class="count" id="injcount">0</span></button>
     </nav>
   </div>
@@ -283,6 +284,11 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
   <div id="ij-sum"></div>
   <div class="card"><h2 id="ij-lh">Biggest injuries</h2><div id="ij-list"></div></div>
   <div class="card" id="ij-prev" hidden></div>
+</section>
+
+<section class="panel" id="panel-model" role="tabpanel" hidden>
+  <div class="card"><p class="hint" style="margin-top:0">The app's own picks and parlays, saved before kickoff and graded after the game whether you bet them or not. None of this touches your bet log or bankroll. Saved in this browser while the app is open with lines loaded, so open it on game mornings.</p>
+  <div id="model-out"></div></div>
 </section>
 
 <section class="panel" id="panel-log" role="tabpanel" hidden>
@@ -809,17 +815,19 @@ const money=v=>(v<0?"-":"")+"$"+Math.abs(v).toFixed(2);
 const sgn=(v,cls=true)=>`<span class="${cls?(v>0?"pos":v<0?"neg":""):""}">${v>0?"+":""}`;
 // Is the model honest? Settled bets with a model %: predicted wins vs actual wins, plus closing-line value.
 function calib(){const s=bets.filter(b=>b.p!=null&&(b.result==="win"||b.result==="loss"));const cl=bets.map(clv).filter(v=>v!=null);
-  if(!s.length)return`<h2 style="margin-top:16px">Model check</h2><p class="hint">Once bets with a model % settle, this compares how often the model expected to win against how often you did.</p>`+pickCheck();
+  if(!s.length)return`<h2 style="margin-top:16px">Model check</h2><p class="hint">Once bets with a model % settle, this compares how often the model expected to win against how often you did.</p>`;
   const exp=s.reduce((x,b)=>x+b.p,0),won=s.filter(b=>b.result==="win").length,n=s.length;
   const verdict=n<30?`Only ${n} settled, so this is noise for now. It means something after about 30, and a lot after 100.`:
     won<exp*.8?"You're winning noticeably less than the model expects: it's running too confident.":won>exp*1.2?"You're winning more than the model expects.":"Wins are close to what the model expects.";
   return`<h2 style="margin-top:16px">Model check</h2><div class="stats" style="grid-template-columns:repeat(3,1fr)">
    <div class="stat"><small>Settled</small><strong>${n}</strong></div><div class="stat"><small>Model expected</small><strong>${exp.toFixed(1)} wins</strong></div>
    <div class="stat"><small>Actual</small><strong>${won} wins</strong></div></div>
-   <p class="hint">${verdict} ${cl.length?`Closing-line value on ${cl.length} bet${cl.length>1?"s":""}: ${(mean(cl)*100).toFixed(1)} points on average (positive = you beat the close, the best early sign of an edge).`:"Closing prices fill in after kickoff on bets logged from the app; type them in for the rest."}</p>${pickCheck()}`}
+   <p class="hint">${verdict} ${cl.length?`Closing-line value on ${cl.length} bet${cl.length>1?"s":""}: ${(mean(cl)*100).toFixed(1)} points on average (positive = you beat the close, the best early sign of an edge).`:"Closing prices fill in after kickoff on bets logged from the app; type them in for the rest."}</p>`}
 // Every value-list pick, graded from the box scores: does the model's chance match how often they hit?
+function renderModel(){const el=$("model-out");if(!el)return;el.innerHTML=pickCheck();
+  $("modelcount").textContent=Object.values(SLIPS).filter(s=>!s.r).length+Object.values(PICKS).filter(x=>!x.r).length}
 function pickCheck(){const all=Object.values(PICKS);
-  if(!all.length)return`<h2 style="margin-top:16px">Every value pick</h2><p class="hint">Each leg that shows up in Best value or Double-check gets tracked here and graded once the stats come in, bet or not. That gets you a real sample in weeks instead of months.</p>`+slipCheck();
+  if(!all.length)return`<h2>Every value pick</h2><p class="hint">Each leg that shows up in Best value or Double-check gets tracked here and graded once the stats come in, bet or not. That gets you a real sample in weeks instead of months.</p>`+slipCheck();
   const done=all.filter(x=>x.r==="hit"||x.r==="miss"),open=all.filter(x=>!x.r).length,voids=all.filter(x=>x.r==="void"||x.r==="push").length;
   const row=(lab,a,c)=>{const n=a.length;if(!n)return"";const cl=c.filter(x=>typeof x.c==="number").map(x=>imp(x.c)-imp(x.o0));
     const exp=n?mean(a.map(x=>x.p)):0,hit=n?a.filter(x=>x.r==="hit").length/n:0,pl=a.reduce((s,x)=>s+(x.r==="hit"?dec(x.o0)-1:-1),0);
@@ -828,7 +836,7 @@ function pickCheck(){const all=Object.values(PICKS);
   const cOf=f=>all.filter(f);
   const n=done.length,verdict=n<50?`${n} graded so far: too few to judge. It starts meaning something around 100.`:(()=>{const e=mean(done.map(x=>x.p)),h=done.filter(x=>x.r==="hit").length/n;
     return h<e-.05?"Picks hit less often than the model says: it's running too confident.":h>e+.05?"Picks hit more often than the model says.":"Picks hit about as often as the model says."})();
-  return`<h2 style="margin-top:16px">Every value pick</h2>
+  return`<h2>Every value pick</h2>
    <p class="hint">${verdict} ${open} waiting on results${voids?`, ${voids} void or push (didn't play, or landed on the number)`:""}. Units are 1 unit flat on every pick at the price when it first showed as value. CLV compares that price with the last pull before kickoff.</p>
    ${n?`<div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Picks</th><th class="num">N</th><th class="num">Model</th><th class="num">Hit</th><th class="num">Units</th><th class="num">CLV</th></tr></thead><tbody>
     ${row("All",done,all)}${row("No flags",done.filter(x=>!x.fl),cOf(x=>!x.fl))}${row("Flagged",done.filter(x=>x.fl),cOf(x=>x.fl))}
@@ -876,6 +884,7 @@ function renderLog(){
     [...groups].sort((a,b)=>b[1].length-a[1].length).map(([k,g])=>{const s=g.filter(settled),st=s.reduce((x,b)=>x+b.stake,0),p=s.reduce((x,b)=>x+profit(b),0),cl=g.map(clv).filter(v=>v!=null);
       return`<tr><td>${esc(k)}</td><td class="num">${g.length}</td><td class="num">${sgn(p)}${money(p)}</span></td><td class="num">${st?sgn(p)+pct(p/st,1)+"</span>":"—"}</td><td class="num">${cl.length?sgn(mean(cl))+(mean(cl)*100).toFixed(1)+"</span>":"—"}</td></tr>`}).join("")}</tbody></table></div>
     <p class="hint">Review monthly. Drop a bet type that keeps losing to the closing line.</p>`:'<p class="empty">Results by stat type show up here.</p>')+calib();
+  renderModel();
 }
 $("bets").addEventListener("change",e=>{const el=e.target,row=el.closest(".bet");if(!row)return;const id=row.dataset.id,k=el.dataset.k;
   if(k==="result")patchBet(id,{result:el.value});
@@ -1370,7 +1379,7 @@ function renderValue(){
   if(dc.length){dcEl.innerHTML=`<details class="dc"><summary>Double-check first (${dc.length})</summary>
     <p class="hint" style="margin:8px 0 0">These look like value on paper, but something could be off: an injury listing, a tiny role, too few games, or an edge so big the model is probably missing news. Read the flag before betting.</p>
     ${dc.map((r,i)=>vrow(r,i)).join("")}</details>`;wireRows(dcEl,dc)}
-  trackPicks();trackSlips();
+  trackPicks();trackSlips();renderModel();
 }
 $("val-game").addEventListener("change",renderValue);
 $("val-stat").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;valStat=b.dataset.s;
@@ -1620,9 +1629,9 @@ $("form").addEventListener("submit",check);
  ["ngames","zfill","qbskip","adj","sonly","uatt"].forEach(id=>$(id).addEventListener("change",sum));sum()}
 ["sitepx","boost","stake"].forEach(id=>$(id).addEventListener("input",renderParlay));
 $("clearlegs").addEventListener("click",()=>{legs=[];saveLegs();renderParlay()});
-function tab(which){for(const t of ["check","val","parlay","log","inj"]){$("tab-"+t).setAttribute("aria-selected",t===which);$("panel-"+t).hidden=t!==which}store.set("pf_tab",which)}
-for(const t of ["check","val","parlay","log","inj"])$("tab-"+t).addEventListener("click",()=>tab(t));
-{const t=store.get("pf_tab","check");if(["val","parlay","log","inj"].includes(t))tab(t)}
+function tab(which){for(const t of ["check","val","parlay","log","model","inj"]){$("tab-"+t).setAttribute("aria-selected",t===which);$("panel-"+t).hidden=t!==which}store.set("pf_tab",which)}
+for(const t of ["check","val","parlay","log","model","inj"])$("tab-"+t).addEventListener("click",()=>tab(t));
+{const t=store.get("pf_tab","check");if(["val","parlay","log","model","inj"].includes(t))tab(t)}
 renderParlay();
 // example so the page opens in a working state
 $("player").value="";
