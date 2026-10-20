@@ -226,6 +226,7 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
       <label for="scb-script">Script<select id="scb-script"></select></label>
       <label for="scb-target">Target odds<input id="scb-target" inputmode="numeric" value="+1000"></label>
     </div>
+    <label for="scb-style">Legs<select id="scb-style"><option value="val">Best value first (fewer, longer legs)</option><option value="safe">More, safer legs (each +150 or shorter, up to 8)</option></select></label>
     <div id="scb-out"></div>
   </div>
   <details class="alt"><summary>No lines for a game yet? Use the milestone builder</summary>
@@ -1407,17 +1408,19 @@ function fillScripts(){const g=(ODDS&&ODDS.games||[]).find(x=>x.id===$("scb-game
   sel.innerHTML=[["auto","Auto"],["h",`${g.h} in control`],["a",`${g.a} in control`],["shoot","Shootout"],["grind","Low-scoring grind"]].map(([v,t])=>`<option value="${v}">${t}</option>`).join("");
   sel.value=cur&&[...sel.options].some(o=>o.value===cur)?cur:"auto"}
 // value legs that fit the script, story legs first; at most one neutral leg and one TD leg, one leg per player
-function buildScript(g,sc,tgt){
-  const cands=scanProps(g.id).filter(r=>!r.flags.length&&!r.out&&r.edge>=R.edge/100&&underOk(r)).map(r=>({...r,fit:legFit(r,sc,g)})).filter(r=>r.fit>=0);
-  const story=cands.filter(r=>r.fit>0).sort((a,b)=>b.edge-a.edge),neutral=cands.filter(r=>r.fit===0).sort((a,b)=>b.edge-a.edge);
+// style "val": highest edge first, up to 6 legs. "safe": only legs at +150 or shorter, most likely first, up to 8.
+function buildScript(g,sc,tgt,style="val"){const safe=style==="safe",maxL=safe?8:6;
+  const cands=scanProps(g.id).filter(r=>!r.flags.length&&!r.out&&r.edge>=R.edge/100&&underOk(r)&&(!safe||r.odds<=150)).map(r=>({...r,fit:legFit(r,sc,g)})).filter(r=>r.fit>=0);
+  const order=safe?(a,b)=>b.p-a.p||b.edge-a.edge:(a,b)=>b.edge-a.edge;
+  const story=cands.filter(r=>r.fit>0).sort(order),neutral=cands.filter(r=>r.fit===0).sort(order);
   const pick=[],used=new Set();let d=1,td=0,nu=0;
-  const take=r=>{if(d>=dec(tgt)||pick.length>=6||used.has(r.player))return;const isTd=!!STATS[r.stat].td;if(isTd&&td)return;
+  const take=r=>{if(d>=dec(tgt)||pick.length>=maxL||used.has(r.player))return;const isTd=!!STATS[r.stat].td;if(isTd&&td)return;
     if(r.fit===0){if(nu)return;nu++}if(isTd)td++;pick.push({...r,why:legWhy(r,sc,g)});used.add(r.player);d*=dec(r.odds)};
   story.forEach(take);neutral.forEach(take);
-  const P=pick.reduce((m,r)=>m*r.p,1);return{sc,pick,d,P,ev:pick.length?P*d-1:-1,nu,reached:d>=dec(tgt)}}
+  const P=pick.reduce((m,r)=>m*r.p,1);return{sc,style,pick,d,P,ev:pick.length?P*d-1:-1,nu,reached:d>=dec(tgt)}}
 let scbPick=[];
 // what Auto picks for a game: the market's script if it has 2+ value legs, else the best-value script that doesn't contradict it
-function autoScript(g,tgt){const all=["h","a","shoot","grind"].map(sc=>buildScript(g,sc,tgt)),ms=marketScript(g);
+function autoScript(g,tgt,style="val"){const all=["h","a","shoot","grind"].map(sc=>buildScript(g,sc,tgt,style)),ms=marketScript(g);
   // never fall back to the underdog running the game when the market has a clear favorite
   const contra=x=>ms&&((ms.sc==="h"&&x.sc==="a")||(ms.sc==="a"&&x.sc==="h")||(ms.sc==="grind"&&x.sc==="shoot")||(ms.sc==="shoot"&&x.sc==="grind"));
   const best=all.filter(x=>x.pick.length>=2&&!contra(x)).sort((x,y)=>(y.reached-x.reached)||(y.ev-x.ev))[0];
@@ -1436,14 +1439,15 @@ function renderScript(){
   const g=games.find(x=>x.id===$("scb-game").value)||games[0];
   let tgt;try{tgt=parseOdds($("scb-target").value)}catch(e){out.innerHTML=`<p class="empty">${e.message}</p>`;return}
   if(tgt==null||tgt<100){out.innerHTML='<p class="empty">Enter target odds like +1000.</p>';return}
-  const A=autoScript(g,tgt),all=A.all,ms=A.ms;let choice=$("scb-script").value||"auto",reason="";
+  const style=$("scb-style").value||"val",A=autoScript(g,tgt,style),all=A.all,ms=A.ms;let choice=$("scb-script").value||"auto",reason="";
   if(choice==="auto"){choice=A.sc;reason=A.reason}
   const r=all.find(x=>x.sc===choice)||all[0],pick=r.pick;scbPick=pick;
   const cmp=`<details class="alt"><summary>Compare all four scripts</summary><table><tr><th>Script</th><th class="num">Legs</th><th class="num">Price</th><th class="num">Model</th><th class="num">EV/$1</th></tr>
     ${all.map(x=>`<tr${x.sc===choice?' style="font-weight:600"':""}><td>${esc(scName(x.sc,g))}${ms&&ms.sc===x.sc?" ★":""}</td><td class="num">${x.pick.length}</td><td class="num">${x.pick.length?fmtA(amer(x.d)):"—"}</td><td class="num">${x.pick.length?pct(x.P,1):"—"}</td><td class="num">${x.pick.length?(x.ev>=0?"+":"")+x.ev.toFixed(2):"—"}</td></tr>`).join("")}</table>
     <p class="hint">★ = the script the spread and total point to.</p></details>`;
   if(!pick.length){out.innerHTML=(reason?`<p class="hint">${esc(reason)}</p>`:"")+`<p class="empty">No ${BOOKN[BOOK]} legs clear your ${R.edge}% minimum edge and fit this script. Try another script or book.</p>`+cmp;return}
-  const d=r.d,P=r.P,ev=r.ev;
+  const d=r.d,P=r.P,ev=r.ev,o2=buildScript(g,r.sc,tgt,style==="safe"?"val":"safe");
+  const other=o2.pick.length>=2?`<li>${style==="safe"?"Best-value version":"Safer version"} of this script: ${o2.pick.length} legs at ${fmtA(amer(o2.d))}, model ${pct(o2.P,1)} (this one: ${pick.length} legs at ${fmtA(amer(d))}, ${pct(P,1)}). ${Math.abs(o2.P*o2.d-P*d)<.05?"About the same value.":(o2.P*o2.d>P*d?"That one has more value at its price.":"This one has more value at its price.")}</li>`:"";
   out.innerHTML=(reason?`<p class="hint"><b>${esc(reason)}</b></p>`:"")+pick.map((x,i)=>vrow(x,i,false).replace(/<\/div>$/,`<div class="m">${x.fit>0?"✓":"•"} ${esc(x.why)}</div></div>`)).join("")+`
    <div class="stats" style="grid-template-columns:repeat(2,1fr)">
     <div class="stat"><small>Legs multiplied</small><strong>${fmtA(amer(d))}</strong></div>
@@ -1453,6 +1457,7 @@ function renderScript(){
    <ul class="notes">
     ${!r.reached?`<li class="w">Only ${pick.length} value leg${pick.length>1?"s":""} fit this script, so the slip tops out at ${fmtA(amer(d))}.</li>`:""}
     ${r.nu?'<li class="w">One leg is neutral: it has value but no link to the story, added to reach the target.</li>':""}
+    ${other}
     <li>This is a same-game parlay. The legs tell one story, so they tend to win or lose together: the real chance is likely higher than the model's, but the book will also pay less than the legs multiplied. Send it to your legs, then enter the book's SGP price there to check value.</li>
    </ul>
    <button class="btn ghost" type="button" id="scb-send">Send to Parlay legs</button>`+cmp;
@@ -1462,6 +1467,7 @@ function renderScript(){
 $("scb-game").addEventListener("change",()=>{$("scb-script").innerHTML="";fillScripts();renderScript()});
 $("scb-script").addEventListener("change",renderScript);
 $("scb-target").addEventListener("change",renderScript);
+$("scb-style").value=store.get("pf_scbstyle","val");$("scb-style").addEventListener("change",()=>{store.set("pf_scbstyle",$("scb-style").value);renderScript()});
 $("rulesform").addEventListener("change",()=>{renderValue();renderScript()});
 
 // ---------- closing prices and pick tracking
@@ -1496,9 +1502,9 @@ function gradeLeg(x){const tg=teamGames(x.season,x.team);if(tg.length<=x.n0)retu
 // paper slips: the Auto script-builder parlay for every game at +1000, frozen at kickoff and graded, bet or not
 function trackSlips(){if(!ODDS||!D)return;const sig=[oddsSeen,IJ&&IJ.updated,D.updated,BOOK,R.edge].join("|");if(sig===slipSig)return;slipSig=sig;
   const now=Date.now();let ch=false;
-  for(const g of ODDS.games||[]){if(!g.a||Date.parse(g.t)<=now)continue;const A=autoScript(g,SLIP_TGT),r=A.all.find(x=>x.sc===A.sc);
-    const k=g.id+"|"+BOOK;if(!A.ok||!r||r.pick.length<2){if(SLIPS[k]&&!SLIPS[k].r){delete SLIPS[k];ch=true}continue}
-    SLIPS[k]={gid:g.id,t:g.t,book:BOOK,game:`${g.a} @ ${g.h}`,sc:scName(A.sc,g),at:now,d:r.d,P:r.P,est:1+(r.d-1)*SGP_CUT(r.pick.length),
+  for(const g of ODDS.games||[])for(const style of ["val","safe"]){if(!g.a||Date.parse(g.t)<=now)continue;const A=autoScript(g,SLIP_TGT,style),r=A.all.find(x=>x.sc===A.sc);
+    const k=g.id+"|"+BOOK+(style==="safe"?"|safe":"");if(!A.ok||!r||r.pick.length<2){if(SLIPS[k]&&!SLIPS[k].r){delete SLIPS[k];ch=true}continue}
+    SLIPS[k]={gid:g.id,t:g.t,book:BOOK,style,game:`${g.a} @ ${g.h}`,sc:scName(A.sc,g),at:now,d:r.d,P:r.P,est:1+(r.d-1)*SGP_CUT(r.pick.length),
       legs:r.pick.map(x=>({player:x.player,team:x.team,opp:x.opp,stat:x.stat,line:x.line,side:x.side,o:x.odds,p:x.p,fit:x.fit,season:D.latest.season,n0:teamGames(D.latest.season,x.team).length}))};ch=true}
   if(ch){store.set("pf_slips",SLIPS);gradeSlips()}}
 function gradeSlips(){if(!D)return;let ch=false;
@@ -1517,15 +1523,19 @@ function slipCheck(){const all=Object.values(SLIPS);
   const legs=done.flatMap(s=>s.legs).filter(l=>l.r==="hit"||l.r==="miss"),lh=legs.filter(l=>l.r==="hit").length,lexp=legs.length?mean(legs.map(l=>l.p)):0;
   const story=legs.filter(l=>l.fit>0),sh=story.filter(l=>l.r==="hit").length;
   return`<h2 style="margin-top:16px">Script builder slips</h2>
-   <p class="hint">The Auto parlay (aiming for +${SLIP_TGT}) for every game with lines, graded after the game. ${open} waiting on results. ${n<30?`${n} graded so far: parlays swing a lot, so give it 30+ before reading much into it.`:""}</p>
+   <p class="hint">The Auto parlay (aiming for +${SLIP_TGT}) for every game with lines, in both leg styles, graded after the game. ${open} waiting on results. ${n<30?`${n} graded so far: parlays swing a lot, so give it 30+ before reading much into it.`:""}</p>
    ${n?`<div class="stats" style="grid-template-columns:repeat(3,1fr)">
     <div class="stat"><small>Record</small><strong>${w}-${n-w}</strong></div><div class="stat"><small>Model expected</small><strong>${exp.toFixed(1)} wins</strong></div>
     <div class="stat"><small>Legs hit</small><strong>${pct(lh/legs.length)}</strong></div>
     <div class="stat"><small>Units at est. SGP</small><strong>${sgn(uEst)}${uEst.toFixed(1)}u</span></strong></div><div class="stat"><small>Units, legs multiplied</small><strong>${sgn(uMul)}${uMul.toFixed(1)}u</span></strong></div>
     <div class="stat"><small>Model said legs hit</small><strong>${pct(lexp)}</strong></div></div>
     <p class="hint">${story.length?`Story legs (the ones that fit the script) hit ${sh} of ${story.length}. `:""}Units are 1 unit per slip. DraftKings' real SGP price is usually somewhere between the two.</p>
-    <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Game</th><th>Script</th><th class="num">Legs</th><th class="num">Price</th><th>Result</th></tr></thead><tbody>
-    ${done.slice(0,12).map(s=>`<tr><td>${esc(s.game)}</td><td>${esc(s.sc)}</td><td class="num">${s.legs.filter(l=>l.r==="hit").length}/${s.legs.length}</td><td class="num">${fmtA(amer(s.est))}</td><td><span class="pill ${s.r==="win"?"p-good":"p-bad"}">${s.r==="win"?"Win":"Loss"}</span></td></tr>`).join("")}
+    <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Style</th><th class="num">Slips</th><th class="num">Record</th><th class="num">Expected</th><th class="num">Avg legs</th><th class="num">Units</th></tr></thead><tbody>
+    ${[["val","Best value"],["safe","Safer legs"]].map(([st,lab])=>{const a=done.filter(x=>(x.style||"val")===st);if(!a.length)return"";const ww=a.filter(x=>x.r==="win").length,u=a.reduce((m,x)=>m+(x.r==="win"?x.estWin-1:-1),0);
+      return`<tr><td>${lab}</td><td class="num">${a.length}</td><td class="num">${ww}-${a.length-ww}</td><td class="num">${a.reduce((m,x)=>m+x.P,0).toFixed(1)}</td><td class="num">${mean(a.map(x=>x.legs.length)).toFixed(1)}</td><td class="num">${sgn(u)}${u.toFixed(1)}u</span></td></tr>`}).join("")}
+    </tbody></table></div>
+    <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Game</th><th>Style</th><th class="num">Legs</th><th class="num">Price</th><th>Result</th></tr></thead><tbody>
+    ${done.slice(0,12).map(s=>`<tr><td>${esc(s.game)}</td><td>${s.style==="safe"?"Safer":"Value"}</td><td class="num">${s.legs.filter(l=>l.r==="hit").length}/${s.legs.length}</td><td class="num">${fmtA(amer(s.est))}</td><td><span class="pill ${s.r==="win"?"p-good":"p-bad"}">${s.r==="win"?"Win":"Loss"}</span></td></tr>`).join("")}
     </tbody></table></div>`:""}`}
 function gradePicks(){if(!D)return;let ch=false;const G=CLOSE?new Map((CLOSE.games||[]).map(g=>[g.id,g])):null,now=Date.now();
   for(const x of Object.values(PICKS)){
