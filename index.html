@@ -356,6 +356,8 @@ const STATS={
 let D=null, byName=new Map(), teamWeeks=new Map(), last=null;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let legs=store.get("pf_legs",[]);
+const SHORT={"Receiving Yards":"rec yds","Receptions":"receptions","Rushing Yards":"rush yds","Rush + Rec Yards":"rush + rec yds",
+ "Passing Yards":"pass yds","Pass Attempts":"pass att","Anytime TD (rush + rec)":"anytime TD"};
 let PICKS=store.get("pf_picks",{}),SLIPS=store.get("pf_slips",{}),CLOSE=null,slipSig="";
 const SLIP_TGT=1000; // the app's own Auto parlays per game, tracked on paper: +1000 in both leg styles, plus a smaller +300
 const SLIP_KINDS=[[1000,"val",""],[1000,"safe","|safe"],[300,"safe","|300"]];
@@ -902,7 +904,7 @@ $("manual").addEventListener("submit",e=>{e.preventDefault();const m=$("m-msg");
   const bo=parseFloat($("m-boost").value);
   addBet({label,stat:/parlay|sgp/i.test(label)?"Parlay":"Other",odds:o,boost:isFinite(bo)&&bo>0?bo:0,p:isFinite(pp)&&pp>0&&pp<100?pp/100:null,stake:st});
   ["m-label","m-odds","m-stake","m-p","m-boost"].forEach(id=>$(id).value="");m.textContent="Added.";});
-fillRules();renderLog();
+try{fillRules();renderLog()}catch(e){console.error(e)}
 
 // ---------- injuries
 let IJ=null,ijG="",ijByKey=new Map();
@@ -1190,8 +1192,6 @@ const MKT={"Receiving Yards":"player_reception_yds","Receptions":"player_recepti
 // milestone ladders (X+ = over X-0.5), pulled when the monthly credit budget allows
 const ALT={"Receiving Yards":"player_reception_yds_alternate","Receptions":"player_receptions_alternate","Rushing Yards":"player_rush_yds_alternate",
  "Rush + Rec Yards":"player_rush_reception_yds_alternate","Passing Yards":"player_pass_yds_alternate"};
-const SHORT={"Receiving Yards":"rec yds","Receptions":"receptions","Rushing Yards":"rush yds","Rush + Rec Yards":"rush + rec yds",
- "Passing Yards":"pass yds","Pass Attempts":"pass att","Anytime TD (rush + rec)":"anytime TD"};
 const BOOKN={draftkings:"DraftKings",fanduel:"FanDuel"};
 let ODDS=null,BOOK=store.get("pf_book","draftkings"),oddsIdx=new Map(),byNrm=new Map(),valStat="",oddsMsg="Loading lines…";
 if(!BOOKN[BOOK])BOOK="draftkings";
@@ -1632,7 +1632,7 @@ $("clearlegs").addEventListener("click",()=>{legs=[];saveLegs();renderParlay()})
 function tab(which){for(const t of ["check","val","parlay","log","model","inj"]){$("tab-"+t).setAttribute("aria-selected",t===which);$("panel-"+t).hidden=t!==which}store.set("pf_tab",which)}
 for(const t of ["check","val","parlay","log","model","inj"])$("tab-"+t).addEventListener("click",()=>tab(t));
 {const t=store.get("pf_tab","check");if(["val","parlay","log","model","inj"].includes(t))tab(t)}
-renderParlay();
+try{renderParlay()}catch(e){console.error(e)}
 // example so the page opens in a working state
 $("player").value="";
 fetch("data.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{D=d;index();if(ODDS)fillLines("player");renderValue();renderScript();gradePicks();gradeSlips()})
