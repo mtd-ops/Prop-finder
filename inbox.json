@@ -28,6 +28,34 @@
    "close": null,
    "cash": null,
    "result": "pending"
+  },
+  {
+   "id": "cl-gbdet-1025",
+   "at": 1792627420609,
+   "label": "SGP GB@DET (BONUS BET $32, no stake at risk; price is an estimate, edit to DK's): Love 290+ pass yds; Kraft O4.5 rec; Golden O73.5 rec yds; Gibbs O4.5 rec",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 850,
+   "boost": 0,
+   "p": 0.115,
+   "stake": 32,
+   "close": null,
+   "cash": null,
+   "result": "pending"
+  },
+  {
+   "id": "cl-nechi-1022",
+   "at": 1792627420610,
+   "label": "SGP NE@CHI (BONUS BET $22, no stake at risk; price is an estimate, edit to DK's): Raymond 3+ rec; Swift O17.5 rec yds; Henderson O25.5 rush yds; Caleb Williams O244.5 pass yds",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 800,
+   "boost": 0,
+   "p": 0.11,
+   "stake": 22,
+   "close": null,
+   "cash": null,
+   "result": "pending"
   }
  ]
 }
