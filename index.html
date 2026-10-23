@@ -353,7 +353,7 @@ const STATS={
  "Passing Yards":{f:g=>g[C.pyd],k:"pass"},"Pass Attempts":{f:g=>g[C.att],k:"pass"},"Pass Completions":{f:g=>g[C.comp],k:"pass"},
  "Passing TDs":{f:g=>g[C.ptd],k:"pass",td:1},"Interceptions":{f:g=>g[C.int],k:"pass"},"Pass + Rush Yards":{f:g=>g[C.pyd]+g[C.ryd],k:"pass"}
 };
-let D=null, byName=new Map(), teamWeeks=new Map(), last=null;
+let D=null, byName=new Map(), teamWeeks=new Map(), teamTot=new Map(), last=null;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let legs=store.get("pf_legs",[]);
 const SHORT={"Receiving Yards":"rec yds","Receptions":"receptions","Rushing Yards":"rush yds","Rush + Rec Yards":"rush + rec yds",
@@ -421,6 +421,7 @@ const parseOdds=t=>{t=(t||"").trim().replace("+","");if(!t)return null;const v=N
 function index(){
   byName.clear();teamWeeks.clear();
   for(const p of D.players){const k=p.n.toLowerCase();const prev=byName.get(k);if(!prev||p.g.length>prev.g.length)byName.set(k,p)}
+  teamTot.clear();for(const p of D.players)for(const g of p.g){const k=g[0]+"|"+g[1]+"|"+g[C.team];const t=teamTot.get(k)||{car:0,tgt:0};if(p.p==="RB"||p.p==="FB")t.car+=g[C.car];t.tgt+=g[C.tgt];teamTot.set(k,t)}
   for(const[s,w,t,o]of D.sched){const k=s+"|"+t;if(!teamWeeks.has(k))teamWeeks.set(k,new Map());teamWeeks.get(k).set(w,o)}
   $("players").innerHTML=D.players.map(p=>`<option value="${p.n.replace(/"/g,"&quot;")}">${p.p}</option>`).join("");
   const teams=[...new Set(D.sched.filter(r=>r[0]===D.latest.season).map(r=>r[2]))].sort();
@@ -488,6 +489,14 @@ function context(p,stat,side,team,opp){
   if(g.length>=4){const lastU=use(g[g.length-1]),prev=mean(g.slice(0,-1).map(use));
     if(lastU>=prev*1.8&&lastU-prev>=3){const t=`Role jump: ${lastU} ${nm} last game vs ${prev.toFixed(1)} before`;over?out.notes.push(t):out.flags.push(t)}
     else if(lastU<=prev*.5&&prev-lastU>=3){const t=`Role drop: ${lastU} ${nm} last game vs ${prev.toFixed(1)} before`;over?out.flags.push(t):out.notes.push(t)}}
+  // role: carry share for backs, target share for pass catchers, running vs pocket QBs (this season, his current team)
+  {const t=curTeam(p),gs=p.g.filter(x=>x[0]===D.latest.season&&x[C.team]===t).slice(-6),rushStat=S.k==="rush"||stat==="Rush + Rec Yards";
+   const share=key=>{let me=0,tm=0;for(const x of gs){const tt=teamTot.get(x[0]+"|"+x[1]+"|"+t);if(!tt||!tt[key])continue;me+=x[C[key]];tm+=tt[key]}return tm?me/tm:null};
+   if(gs.length>=2&&over){
+    if(myG==="RB"&&rushStat){const cs=share("car");if(cs!=null){if(cs<.55)out.flags.push(`Split backfield: ${Math.round(cs*100)}% of ${t}'s RB carries`);else if(cs>=.65)out.notes.push(`Workhorse: ${Math.round(cs*100)}% of ${t}'s RB carries`)}}
+    if(recv&&myG!=="QB"){const ts=share("tgt"),lo=myG==="RB"?.08:.15;if(ts!=null){if(ts<lo)out.flags.push(`Low target share: ${Math.round(ts*100)}% of ${t}'s targets`);else if(ts>=.24)out.notes.push(`Target hog: ${Math.round(ts*100)}% of ${t}'s targets`)}}
+    if(myG==="QB"&&S.k==="rush"){const ca=mean(gs.map(x=>x[C.car])),yd=mean(gs.map(x=>x[C.ryd]));
+      if(ca<4||yd<15)out.flags.push(`Pocket QB: ${ca.toFixed(1)} runs, ${yd.toFixed(0)} yds a game; rushing comes from scrambles`);else out.notes.push(`Running QB: ${ca.toFixed(1)} runs a game`)}}}
   // wind hurts passing and receiving
   const gm=IJ&&IJ.games&&IJ.games.find(x=>x.a===team||x.h===team);
   if(gm&&gm.wx&&(S.k==="pass"||recv)&&gm.wx.wind>=15){const t=`Wind ${gm.wx.wind} mph (gusts ${gm.wx.gust}) at kickoff`;over?out.flags.push(t):out.notes.push(t)}
