@@ -1650,5 +1650,17 @@ fetch("data.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new 
  .catch(()=>{$("fresh").textContent="Couldn't load stats. Refresh the page.";$("out").innerHTML='<div class="card empty">The stats file didn\'t load. Refresh the page to try again.</div>'});
 })();
 </script>
+<div id="ptr" aria-hidden="true" style="position:fixed;left:50%;top:0;transform:translate(-50%,-48px);z-index:50;padding:8px 14px;border-radius:999px;background:var(--card,#1a1a1d);color:var(--muted,#a1a1aa);border:1px solid var(--line,#2a2a2e);font:600 12px system-ui,sans-serif;transition:transform .15s;pointer-events:none">Pull to refresh</div>
+<script>
+// pull to refresh: works in the home-screen app and inside the Claude viewer, where the browser's own pull-down doesn't
+(()=>{const el=document.getElementById("ptr");let y0=null,x0=0,dy=0,armed=false;const T=80;
+  addEventListener("touchstart",e=>{if(scrollY>0||e.touches.length!==1){y0=null;return}y0=e.touches[0].clientY;x0=e.touches[0].clientX;dy=0;armed=false},{passive:true});
+  addEventListener("touchmove",e=>{if(y0==null)return;const t=e.touches[0];dy=t.clientY-y0;
+    if(dy<=0||Math.abs(t.clientX-x0)>dy||scrollY>0){el.style.transform="translate(-50%,-48px)";return}
+    armed=dy>T;el.textContent=armed?"Release to refresh":"Pull to refresh";el.style.transform=`translate(-50%,${Math.min(dy,T+30)*.6-48}px)`},{passive:true});
+  addEventListener("touchend",()=>{if(y0==null)return;y0=null;
+    if(armed){el.textContent="Refreshing…";el.style.transform="translate(-50%,16px)";setTimeout(()=>location.reload(),150)}
+    else el.style.transform="translate(-50%,-48px)"},{passive:true})})();
+</script>
 
 </body></html>
