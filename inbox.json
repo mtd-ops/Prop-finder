@@ -56,6 +56,20 @@
    "close": null,
    "cash": null,
    "result": "pending"
+  },
+  {
+   "id": "dk-639282388371672279",
+   "at": 1792643237000,
+   "label": "SGP SF@ATL (BONUS BET $24, no stake at risk): Purdy 250+ pass yds; Dotson 30+ rec yds; Penix O230.5 pass yds; CMC O42.5 rec yds; Kittle 60+ rec yds",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 1000,
+   "boost": 0,
+   "p": 0.095,
+   "stake": 24,
+   "close": null,
+   "cash": null,
+   "result": "pending"
   }
  ]
 }
