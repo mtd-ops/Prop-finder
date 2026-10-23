@@ -774,7 +774,9 @@ async function importInbox(db,col,existing){
 }
 const bst=b=>Math.max(0,+b.boost||0)/100;
 const effDec=b=>1+(dec(b.odds)-1)*(1+bst(b)); // what the bet pays per $1, boost included
-const profit=b=>b.result==="win"?b.stake*(effDec(b)-1):b.result==="loss"?-b.stake:b.result==="cashout"?(+b.cash||0)-b.stake:0;
+// bonus bets: a win pays the profit only, a loss costs nothing; neither counts in the record or ROI
+const isBonus=b=>b.result==="bonuswin"||b.result==="bonusloss";
+const profit=b=>b.result==="win"||b.result==="bonuswin"?b.stake*(effDec(b)-1):b.result==="loss"?-b.stake:b.result==="cashout"?(+b.cash||0)-b.stake:0;
 const boostProfit=b=>b.result==="win"?b.stake*(dec(b.odds)-1)*bst(b):0;
 const settled=b=>b.result==="win"||b.result==="loss"||b.result==="push"||b.result==="cashout";
 const legRec=l=>({player:l.player,stat:l.stat||null,line:l.line??null,side:l.side||null,gid:l.gid||null,book:l.book||BOOK,o:l.odds});
@@ -878,14 +880,14 @@ function renderLog(){
    <div class="stat"><small>Beat close</small><strong>${C2.length?beat+"/"+C2.length:"—"}</strong></div>
    <div class="stat"><small>Avg edge</small><strong>${avgE==null?"—":sgn(avgE,false)+pct(avgE,1)+"</span>"}</strong></div>
    <div class="stat"><small>Max drop</small><strong>${pct(dd,1)}</strong></div>
-  </div>${bets.some(b=>bst(b))?`<p class="hint">Profit boosts used on ${bets.filter(b=>bst(b)).length} bet${bets.filter(b=>bst(b)).length===1?"":"s"}; they've added ${money(bets.reduce((x,b)=>x+boostProfit(b),0))} to your winnings so far.</p>`:""}<p class="hint">CLV is how many percentage points better your price was than the closing price. Positive means the market moved your way after you bet.</p></div>`;
-  const list=bets.filter(b=>lfilt==="all"||(lfilt==="pending"?b.result==="pending":settled(b))).slice().reverse();
+  </div>${bets.some(isBonus)?(()=>{const bb=bets.filter(isBonus),w=bb.filter(b=>b.result==="bonuswin");return`<p class="hint">Bonus bets: ${w.length} of ${bb.length} won, adding ${money(w.reduce((x,b)=>x+profit(b),0))} to your bankroll. They're left out of your record and ROI since no cash was at risk.</p>`})():""}${bets.some(b=>bst(b))?`<p class="hint">Profit boosts used on ${bets.filter(b=>bst(b)).length} bet${bets.filter(b=>bst(b)).length===1?"":"s"}; they've added ${money(bets.reduce((x,b)=>x+boostProfit(b),0))} to your winnings so far.</p>`:""}<p class="hint">CLV is how many percentage points better your price was than the closing price. Positive means the market moved your way after you bet.</p></div>`;
+  const list=bets.filter(b=>lfilt==="all"||(lfilt==="pending"?b.result==="pending":settled(b)||isBonus(b))).slice().reverse();
   $("bets").innerHTML=list.length?list.map(b=>{const c=clv(b),pr=profit(b),d=new Date(b.at);
     return `<div class="bet" data-id="${esc(b.id)}"><div class="t"><span>${esc(b.label)}</span><span class="pl">${settled(b)?sgn(pr)+money(pr)+"</span>":""}</span></div>
      <div class="m">${d.toLocaleDateString(undefined,{month:"short",day:"numeric"})} · ${fmtA(b.odds)}${bst(b)?` +${Math.round(bst(b)*100)}% boost (pays ${fmtA(amer(effDec(b)))})`:""} · ${money(b.stake)}${b.p!=null?` · model ${pct(b.p)} · edge ${sgn(b.p-1/effDec(b),false)}${pct(b.p-1/effDec(b),1)}</span>`:""}${c!=null?` · CLV ${sgn(c)}${(c*100).toFixed(1)} pts</span>`:""}</div>
      ${(()=>{const a=b.close==null&&autoClose(b);return a?`<div class="m">Closing price filled in: legs ${fmtA(amer(a.o))} when you bet, ${fmtA(amer(a.c))} at the last pull before kickoff.</div>`:Array.isArray(b.legs)&&b.legs.some(l=>l.gid&&l.c===undefined)?`<div class="m">Closing price fills in after kickoff.</div>`:Array.isArray(b.legs)&&b.legs.some(l=>l.c===null)?`<div class="m">Couldn't find a closing price for every leg (a line moved or wasn't pulled). Type it in if you have it.</div>`:""})()}
      <div class="ctl"><label>Closing price<input data-k="close" inputmode="numeric" value="${b.close!=null?fmtA(b.close):""}" placeholder="${fmtA(b.odds)}"></label>
-      <label>Result<select data-k="result">${["pending","win","loss","push","cashout"].map(r=>`<option value="${r}"${b.result===r?" selected":""}>${({pending:"Open",cashout:"Cashed out"})[r]||r[0].toUpperCase()+r.slice(1)}</option>`).join("")}</select></label>
+      <label>Result<select data-k="result">${["pending","win","loss","push","cashout","bonuswin","bonusloss"].map(r=>`<option value="${r}"${b.result===r?" selected":""}>${({pending:"Open",cashout:"Cashed out",bonuswin:"Bonus bet won",bonusloss:"Bonus bet lost"})[r]||r[0].toUpperCase()+r.slice(1)}</option>`).join("")}</select></label>
       <button type="button" data-k="rm" aria-label="Delete bet">Delete</button></div>
      <div class="ctl2"><label>Profit boost %<input data-k="boost" inputmode="decimal" value="${bst(b)?Math.round(bst(b)*100):""}" placeholder="0"></label>
       ${b.result==="cashout"?`<label>Cash-out amount ($)<input data-k="cash" inputmode="decimal" value="${b.cash!=null?b.cash:""}" placeholder="e.g. 17"></label>`:""}</div></div>`}).join("")
