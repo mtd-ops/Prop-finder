@@ -188,7 +188,7 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
           <label><input type="checkbox" id="zfill" checked> Count missed games as 0 (not QBs)</label>
           <label><input type="checkbox" id="qbskip" checked> Skip QB games under 10 attempts</label>
           <label><input type="checkbox" id="adj" checked> Adjust for opponent defense and expected scoring</label>
-          <label><input type="checkbox" id="uatt"> Unders only on pass and rush attempts (other unders stay off Best value and the script builder, but are still tracked)</label>
+          <label><input type="checkbox" id="uatt"> Unders only on attempts, and only when the spread backs it: pass attempts for a 3+ point favorite, rush attempts for a 3+ point underdog (other unders are still tracked)</label>
           <label><input type="checkbox" id="sonly" checked> Drop last season's games once he has 4+ this season (before that, both seasons count)</label>
         </div>
       </div>
@@ -1334,7 +1334,11 @@ function scanProps(gameId){
 }
 // yardage unders can die on one long play: flag when he's gone way past the line in a real share of games
 const ATT=new Set(["Pass Attempts","Rush Attempts"]);
-const underOk=r=>r.side!=="Under"||ATT.has(r.stat)||!$("uatt").checked;
+// attempts unders only when the game script backs them: pass attempts for a clear favorite (it leads and runs the clock),
+// rush attempts for a clear underdog (it trails and throws). "Clear" = 3+ points.
+const teamSpread=t=>{const g=IJ&&IJ.games&&IJ.games.find(x=>x.a===t||x.h===t);return g&&g.sp!=null?(t===g.h?g.sp:-g.sp):null};
+const underOk=r=>{if(r.side!=="Under"||!$("uatt").checked)return true;if(!ATT.has(r.stat))return false;const sp=teamSpread(r.team);
+  return sp!=null&&(r.stat==="Pass Attempts"?sp>=3:sp<=-3)};
 function boom(stat,side,line,vals){if(side!=="Under"||!/Yards/.test(stat)||!vals||vals.length<4||line<=0)return null;
   const k=vals.filter(v=>v>=line*1.5).length;return k>=2&&k/vals.length>=.25?`Boom risk: ${Math.round(line*1.5)}+ in ${k} of his last ${vals.length} (one big play beats this under)`:null}
 const legLabel=r=>STATS[r.stat].td?`${r.player} anytime TD`:r.ms?`${r.player} ${r.ms}+ ${SHORT[r.stat]}`:`${r.player} ${r.side} ${r.line} ${SHORT[r.stat]}`;
