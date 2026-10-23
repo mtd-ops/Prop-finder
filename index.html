@@ -188,7 +188,7 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
           <label><input type="checkbox" id="zfill" checked> Count missed games as 0 (not QBs)</label>
           <label><input type="checkbox" id="qbskip" checked> Skip QB games under 10 attempts</label>
           <label><input type="checkbox" id="adj" checked> Adjust for opponent defense and expected scoring</label>
-          <label><input type="checkbox" id="uatt"> Unders only on attempts, and only when the spread backs it: pass attempts for a 3+ point favorite, rush attempts for a 3+ point underdog (other unders are still tracked)</label>
+          <label><input type="checkbox" id="uatt"> Unders only on attempts, and only when the spread backs it: pass attempts for a 4+ point favorite, rush attempts for a 4+ point underdog (other unders are still tracked)</label>
           <label><input type="checkbox" id="sonly" checked> Drop last season's games once he has 4+ this season (before that, both seasons count)</label>
         </div>
       </div>
@@ -287,7 +287,7 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
 </section>
 
 <section class="panel" id="panel-model" role="tabpanel" hidden>
-  <div class="card"><p class="hint" style="margin-top:0">The app's own picks and parlays, saved before kickoff and graded after the game whether you bet them or not. None of this touches your bet log or bankroll. Saved in this browser while the app is open with lines loaded, so open it on game mornings.</p>
+  <div class="card"><p class="hint" style="margin-top:0">The app's own picks and parlays, saved before kickoff and graded after the game whether you bet them or not. None of this touches your bet log or bankroll. The GitHub refresh saves and grades these on its own a few times a day.</p>
   <div id="model-out"></div></div>
 </section>
 
@@ -856,7 +856,7 @@ function pickCheck(){const all=Object.values(PICKS);
     ${by(x=>x.stat).map(([k,a])=>row((SHORT[k]||k).replace(/^./,c=>c.toUpperCase()),a,cOf(x=>x.stat===k))).join("")}
     ${by(x=>x.side==="Under"?"Unders":"Overs").map(([k,a])=>row(k,a,cOf(x=>(x.side==="Under"?"Unders":"Overs")===k))).join("")}
    </tbody></table></div>`:""}
-   <p class="hint">Tracked in this browser while the app is open with lines loaded. Back up from the Bet log to keep them.</p>`+slipCheck()}
+   <p class="hint">Saved and graded automatically by the GitHub refresh a few times a day, so every device shows the same history.</p>`+slipCheck()}
 function renderLog(){
   $("logcount").textContent=bets.filter(b=>b.result==="pending").length;
   const S=bets.filter(settled),W=S.filter(b=>b.result==="win"||(b.result==="cashout"&&profit(b)>0)).length,L=S.filter(b=>b.result==="loss"||(b.result==="cashout"&&profit(b)<0)).length,P=S.length-W-L;
@@ -1335,10 +1335,10 @@ function scanProps(gameId){
 // yardage unders can die on one long play: flag when he's gone way past the line in a real share of games
 const ATT=new Set(["Pass Attempts","Rush Attempts"]);
 // attempts unders only when the game script backs them: pass attempts for a clear favorite (it leads and runs the clock),
-// rush attempts for a clear underdog (it trails and throws). "Clear" = 3+ points.
+// rush attempts for a clear underdog (it trails and throws). "Clear" = 4+ points.
 const teamSpread=t=>{const g=IJ&&IJ.games&&IJ.games.find(x=>x.a===t||x.h===t);return g&&g.sp!=null?(t===g.h?g.sp:-g.sp):null};
 const underOk=r=>{if(r.side!=="Under"||!$("uatt").checked)return true;if(!ATT.has(r.stat))return false;const sp=teamSpread(r.team);
-  return sp!=null&&(r.stat==="Pass Attempts"?sp>=3:sp<=-3)};
+  return sp!=null&&(r.stat==="Pass Attempts"?sp>=4:sp<=-4)};
 function boom(stat,side,line,vals){if(side!=="Under"||!/Yards/.test(stat)||!vals||vals.length<4||line<=0)return null;
   const k=vals.filter(v=>v>=line*1.5).length;return k>=2&&k/vals.length>=.25?`Boom risk: ${Math.round(line*1.5)}+ in ${k} of his last ${vals.length} (one big play beats this under)`:null}
 const legLabel=r=>STATS[r.stat].td?`${r.player} anytime TD`:r.ms?`${r.player} ${r.ms}+ ${SHORT[r.stat]}`:`${r.player} ${r.side} ${r.line} ${SHORT[r.stat]}`;
@@ -1624,7 +1624,12 @@ function loadInbox(){return fetch("inbox.json?v="+Date.now(),{cache:"no-store"})
     if(betCol){const{id,...body}=nb;q(id,()=>betCol.doc(id).set(body))}}
   store.set("pf_inbox_seen",[...seen]);
   if(n){bets.sort((a,b)=>a.at-b.at);persistLocal();renderLog();const el=$("logsync");setTimeout(()=>{if(el)el.textContent=`Added ${n} bet${n>1?"s":""} from Claude to your log.`},50)}}).catch(()=>{})}
-loadOdds();loadClose();loadInbox();
+// tracking.json: the picks and slips the GitHub refresh saves and grades on its own. Merged in so every device shows them;
+// a graded copy beats an ungraded one, and anything this browser saved that the server doesn't have is kept.
+function loadTracking(){return fetch("tracking.json?v="+Date.now(),{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(t=>{
+  let ch=false;const merge=(dst,src)=>{for(const[k,v]of Object.entries(src||{})){const x=dst[k];if(!x||(v.r&&!x.r)){dst[k]=v;ch=true}}};
+  merge(PICKS,t.picks);merge(SLIPS,t.slips);if(ch){savePicks();store.set("pf_slips",SLIPS);renderModel()}}).catch(()=>{})}
+loadOdds();loadClose();loadInbox();loadTracking();
 setInterval(()=>{if(document.visibilityState==="visible"){loadOdds();loadClose()}},10*60*1000);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-oddsAt>2*60*1000){loadOdds();loadClose();loadInbox();if(IJ)loadInj()}});
 
