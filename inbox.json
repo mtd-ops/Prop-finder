@@ -70,6 +70,20 @@
    "close": null,
    "cash": null,
    "result": "pending"
+  },
+  {
+   "id": "fan-denari-1025",
+   "at": 1792861469110,
+   "label": "Fanatics SGP DEN@ARI (+50% boost): Nix U31.5 pass att; Dobbins O13.5 rush att; Brissett O36.5 pass att; McBride 8+ rec",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 640,
+   "boost": 50,
+   "p": 0.15,
+   "stake": 5,
+   "close": null,
+   "cash": null,
+   "result": "pending"
   }
  ]
 }
