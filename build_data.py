@@ -165,6 +165,13 @@ def build_injuries(out_dir, plist, season):
         sn.setdefault(k, []).append((int(r["week"]), max(o, d), "O" if o >= d else "D", r["position"]))
     for v in sn.values():
         v.sort(reverse=True)
+    # offensive snap share by week for skill players, for the app's role-trend check ("name|team": [[week, pct], ...])
+    skill_snaps = {}
+    for r in snaps:
+        if r["position"] in ("QB", "RB", "FB", "WR", "TE") and float(r["offense_pct"] or 0) > 0:
+            skill_snaps.setdefault(norm(r["player"]) + "|" + r["team"], []).append([int(r["week"]), round(float(r["offense_pct"]), 2)])
+    for v in skill_snaps.values():
+        v.sort()
     st = {}
     for p in plist:
         cur = [g for g in p["g"] if g[0] == season]
@@ -241,7 +248,7 @@ def build_injuries(out_dir, plist, season):
             e["nx"] = [[disp.get((nm, e["t"]), nm), sh] for sh, nm in c[:4]]
     out.sort(key=lambda e: (-e["cur"], -e["sig"], e["n"]))
     data = {"updated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
-            "season": season, "week": week, "games": games, "players": out}
+            "season": season, "week": week, "games": games, "players": out, "snaps": skill_snaps}
     path = f"{out_dir}/injuries.json"
     with open(path, "w") as fh:
         json.dump(data, fh, separators=(",", ":"))

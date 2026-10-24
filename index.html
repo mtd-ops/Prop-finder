@@ -456,7 +456,7 @@ function lastStarter(team){const by=new Map();
   const cnt=new Map();let lastWk=-1,lastN=null;for(const[k,v]of by){cnt.set(v.n,(cnt.get(v.n)||0)+1);if(k>lastWk){lastWk=k;lastN=v.n}}
   let best=lastN,bc=cnt.get(lastN)||0;for(const[n,c]of cnt)if(c>bc){best=n;bc=c}
   return best?nrm(best):null}
-function context(p,stat,side,team,opp){
+function context(p,stat,side,team,opp,line){
   const out={flags:[],notes:[]};if(!D)return out;const S=STATS[stat],over=side!=="Under",myG=GRP[p.p],recv=S.k==="rec"||stat==="Rush + Rec Yards";
   const sameRole=g=>g===myG||(recv&&(g==="WR"||g==="TE"||g==="RB"));
   if(IJ){const outs=IJ.players.filter(e=>e.t===team&&e.cur&&(e.gs==="Out"||e.gs==="Doubtful")&&e.snap>=.35&&nrm(e.n)!==nrm(p.n));
@@ -497,6 +497,22 @@ function context(p,stat,side,team,opp){
     if(recv&&myG!=="QB"){const ts=share("tgt"),lo=myG==="RB"?.08:.15;if(ts!=null){if(ts<lo)out.flags.push(`Low target share: ${Math.round(ts*100)}% of ${t}'s targets`);else if(ts>=.24)out.notes.push(`Target hog: ${Math.round(ts*100)}% of ${t}'s targets`)}}
     if(myG==="QB"&&S.k==="rush"){const ca=mean(gs.map(x=>x[C.car])),yd=mean(gs.map(x=>x[C.ryd]));
       if(ca<4||yd<15)out.flags.push(`Pocket QB: ${ca.toFixed(1)} runs, ${yd.toFixed(0)} yds a game; rushing comes from scrambles`);else out.notes.push(`Running QB: ${ca.toFixed(1)} runs a game`)}}}
+  // floor: how often he's been nowhere near this line (a swingy player can average the line and still miss a lot)
+  {const t=curTeam(p),v=p.g.filter(x=>x[0]===D.latest.season&&x[C.team]===t).slice(-6).map(S.f);
+   if(over&&line>0&&v.length>=4&&!S.td){const m=mean(v),cv=m>0?sd(v)/m:9,dud=v.filter(x=>x<line*.6).length;
+     if(dud>=2&&cv>=.45)out.flags.push(`Swingy: under ${Math.round(line*.6)} in ${dud} of his last ${v.length}`);
+     else if(cv<.3&&!v.some(x=>x<line*.75))out.notes.push(`Steady: ${v.length} straight games at ${Math.round(Math.min(...v))}+`)}}
+  // snap share trend: a falling share comes before a lost role
+  if(IJ&&IJ.snaps&&over&&myG&&myG!=="QB"){const sn=(IJ.snaps[nrm(p.n)+"|"+curTeam(p)]||[]).slice(-5);
+    if(sn.length>=4){const last2=mean(sn.slice(-2).map(x=>x[1])),before=mean(sn.slice(0,-2).map(x=>x[1]));
+      if(before-last2>=.15)out.flags.push(`Snap share falling: ${Math.round(last2*100)}% last 2 games vs ${Math.round(before*100)}% before`);
+      else if(last2-before>=.15)out.notes.push(`Snap share rising: ${Math.round(last2*100)}% last 2 games vs ${Math.round(before*100)}% before`)}}
+  // depth of target: deep targets make catches lumpy, short targets make them steady
+  if(over&&recv&&myG!=="QB"){const t=curTeam(p),gs=p.g.filter(x=>x[0]===D.latest.season&&x[C.team]===t).slice(-6),tg=gs.reduce((a,x)=>a+x[C.tgt],0);
+    if(tg>=10){const adot=gs.reduce((a,x)=>a+x[C.air],0)/tg;
+      if(stat==="Receptions"&&adot>=13)out.flags.push(`Deep threat (${adot.toFixed(1)} yd avg target): catches come in bunches or not at all`);
+      else if(stat==="Receptions"&&adot<=7)out.notes.push(`Short-area target (${adot.toFixed(1)} yd avg): steady catches`);
+      else if(/Yards/.test(stat)&&adot>=13)out.notes.push(`Deep threat (${adot.toFixed(1)} yd avg target): one catch can clear it, or none`)}}
   // wind hurts passing and receiving
   const gm=IJ&&IJ.games&&IJ.games.find(x=>x.a===team||x.h===team);
   if(gm&&gm.wx&&(S.k==="pass"||recv)&&gm.wx.wind>=15){const t=`Wind ${gm.wx.wind} mph (gusts ${gm.wx.gust}) at kickoff`;over?out.flags.push(t):out.notes.push(t)}
@@ -597,7 +613,7 @@ function check(e){
   if(!ms&&!S.td){const[h,n2]=seasonHits(p,stat,line,best.side==="Under"?"Under":"Over");if(n2)notes.push(`This season: ${best.side==="Under"?"under":"over"} ${line} in ${h} of ${n2} games (${pct(h/n2)}).`)}
   if(tfo.pts)notes.push(tfo.by==="sp"?`${curTeam(p)} is ${tfo.sp>0?"favored by "+tfo.sp:tfo.sp<0?"a "+(-tfo.sp)+"-point underdog":"a pick'em"}; ${stat.toLowerCase()} ${tfo.sp*(stat==="Pass Attempts"?-1:1)>0?"rise":"dip"} a little with that, so ×${tfo.f.toFixed(2)}.`
     :`${curTeam(p)} is expected to score about ${tfo.pts.toFixed(1)} (slate average ${tfo.av.toFixed(1)}), so ${stat.toLowerCase()} are scaled ×${tfo.f.toFixed(2)}.`);
-  {const cx=context(p,stat,best.side==="Under"?"Under":"Over",curTeam(p),opp);cx.flags.forEach(t=>notes.push({w:1,t}));cx.notes.forEach(t=>notes.push(t))}
+  {const cx=context(p,stat,best.side==="Under"?"Under":"Over",curTeam(p),opp,line);cx.flags.forEach(t=>notes.push({w:1,t}));cx.notes.forEach(t=>notes.push(t))}
   if(fd!==1){const mu=defMatch(stat,p.p,opp);
     notes.push(`Projection ${m.toFixed(1)} is his average ${m0.toFixed(1)} × ${f.toFixed(2)} for the ${opp} defense${tfo.f!==1?" and expected scoring":""}`+(mu?`, which ranks ${mu.label} in ${mu.what} allowed (${mu.v.toFixed(1)} a game vs ${mu.lg.toFixed(1)} league average${mu.soft?", a soft matchup":mu.tough?", a tough matchup":""}).`:"."))}
   {const b=boom(stat,best.side==="Under"?"Under":"Over",line,vals);if(b)notes.push({w:1,t:b})}
@@ -1313,7 +1329,7 @@ function scanProps(gameId){
       if(best.edge>.10)flags.push("Edge over 10%: the model may be missing something");
       if(r.Nall<R.games)flags.push(`Only ${r.Nall} games`);
       if(p.p!=="QB"&&r.use<3)flags.push("Small role");
-      const cx=context(p,stat,best.side,team,opp);flags.push(...cx.flags);
+      const cx=context(p,stat,best.side,team,opp,c.line);flags.push(...cx.flags);
       {const b=boom(stat,best.side,c.line,r.vals);if(b)flags.push(b)}
       const sh=STATS[stat].td?null:seasonHits(p,stat,c.line,best.side);
       rows.push({cx:cx.notes,sh,mu:defMatch(stat,p.p,opp),player:p.n,pos:p.p,team,opp,g,stat,line:c.line,side:best.side,odds:best.odds,p:best.p,edge:best.edge,hit:best.hit,N:r.N,flags,
@@ -1327,7 +1343,7 @@ function scanProps(gameId){
       if(x.edge>.10)flags.push("Edge over 10%: the model may be missing something");
       if(r.Nall<R.games)flags.push(`Only ${r.Nall} games`);
       if(p.p!=="QB"&&r.use<3)flags.push("Small role");
-      const cx=context(p,stat,"Over",team,opp);flags.push(...cx.flags);
+      const cx=context(p,stat,"Over",team,opp,L);flags.push(...cx.flags);
       rows.push({cx:cx.notes,sh:seasonHits(p,stat,L,"Over"),mu:defMatch(stat,p.p,opp),player:p.n,pos:p.p,team,opp,g,stat,line:L,side:"Over",ms:Math.round(L+.5),odds:x.odds,p:x.p,edge:x.edge,hit:x.hit,N:r.N,flags,
         out:!!(ij&&ij.cur&&(ij.gs==="Out"||ij.gs==="Doubtful"))})}}
   return rows;
