@@ -98,6 +98,20 @@
    "close": null,
    "cash": null,
    "result": "pending"
+  },
+  {
+   "id": "dk-gbdet-15-cashout",
+   "at": 1792790505360,
+   "label": "DK SGP GB@DET ($15 cash, cashed out $13.50): Love 290+; Gibbs O4.5 rec; Golden; Kraft O4.5 rec",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 700,
+   "boost": 0,
+   "p": 0.12,
+   "stake": 15,
+   "close": null,
+   "cash": 13.5,
+   "result": "cashout"
   }
  ]
 }
