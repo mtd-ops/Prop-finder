@@ -112,6 +112,20 @@
    "close": null,
    "cash": 13.5,
    "result": "cashout"
+  },
+  {
+   "id": "dk-639284802430395283",
+   "at": 1792883442000,
+   "label": "DK SGP KC@SEA (+30% boost): Walker 90+ rush yds; Walker U3.5 rec; JSN O92.5 rec yds",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 550,
+   "boost": 30,
+   "p": 0.21,
+   "stake": 10,
+   "close": null,
+   "cash": null,
+   "result": "pending"
   }
  ]
 }
