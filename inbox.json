@@ -84,6 +84,20 @@
    "close": null,
    "cash": null,
    "result": "pending"
+  },
+  {
+   "id": "dk-sgpx-1025-nyg-car-lv",
+   "at": 1792875126896,
+   "label": "DK SGPx 4-leg: Nabers O5.5 rec + Stroud 260+ pass yds (NYG@HOU); Hubbard O68.5 rush yds (TB@CAR); Bowers 60+ rec yds (LA@LV)",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 952,
+   "boost": 0,
+   "p": 0.12,
+   "stake": 10,
+   "close": null,
+   "cash": null,
+   "result": "pending"
   }
  ]
 }
