@@ -225,8 +225,9 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
     <label for="scb-game">Game<select id="scb-game"><option value="">Loading lines…</option></select></label>
     <div class="grid2">
       <label for="scb-script">Script<select id="scb-script"></select></label>
-      <label for="scb-target">Target odds<input id="scb-target" inputmode="numeric" value="+300"></label>
+      <label for="scb-target">Target (after boost)<input id="scb-target" inputmode="numeric" value="+1000"></label>
     </div>
+    <label for="scb-promo">Promo<select id="scb-promo"><option value="0">None (your rule: skip)</option><option value="20">20% profit boost</option><option value="30">30% profit boost</option><option value="50">50% profit boost</option><option value="bonus">Bonus bet</option></select></label>
     <label for="scb-style">Legs<select id="scb-style"><option value="val">Best value first (fewer, longer legs)</option><option value="safe">More, safer legs (each +150 or shorter, up to 8)</option></select></label>
     <div id="scb-out"></div>
   </div>
@@ -1462,6 +1463,7 @@ function buildScript(g,sc,tgt,style="val"){const safe=style==="safe",maxL=safe?8
   story.forEach(take);neutral.forEach(take);
   const P=pick.reduce((m,r)=>m*r.p,1);return{sc,style,pick,d,P,ev:pick.length?P*d-1:-1,nu,reached:d>=dec(tgt)}}
 let scbPick=[];
+const promo=()=>{const v=$("scb-promo").value;return v==="bonus"?{b:0,bonus:true}:v==="0"?{b:0,none:true}:{b:(+v||0)/100}};
 // what Auto picks for a game: the market's script if it has 2+ value legs, else the best-value script that doesn't contradict it
 function autoScript(g,tgt,style="val"){const all=["h","a","shoot","grind"].map(sc=>buildScript(g,sc,tgt,style)),ms=marketScript(g);
   // never fall back to the underdog running the game when the market has a clear favorite
@@ -1482,6 +1484,9 @@ function renderScript(){
   const g=games.find(x=>x.id===$("scb-game").value)||games[0];
   let tgt;try{tgt=parseOdds($("scb-target").value)}catch(e){out.innerHTML=`<p class="empty">${e.message}</p>`;return}
   if(tgt==null||tgt<100){out.innerHTML='<p class="empty">Enter target odds like +1000.</p>';return}
+  const pr=promo(),T=dec(tgt),baseD=pr.b?1+(T-1)/(1+pr.b):T;
+  // same-game parlays pay about 25% less than the legs multiplied, so aim the legs a bit higher
+  const legsD=1+(baseD-1)/.75,boostedTgt=tgt;tgt=amer(legsD);
   const style=$("scb-style").value||"val",A=autoScript(g,tgt,style),all=A.all,ms=A.ms;let choice=$("scb-script").value||"auto",reason="";
   if(choice==="auto"){choice=A.sc;reason=A.reason}
   const r=all.find(x=>x.sc===choice)||all[0],pick=r.pick;scbPick=pick;
@@ -1495,8 +1500,11 @@ function renderScript(){
    <div class="stats" style="grid-template-columns:repeat(2,1fr)">
     <div class="stat"><small>Legs multiplied</small><strong>${fmtA(amer(d))}</strong></div>
     <div class="stat"><small>Est. SGP price</small><strong>~${fmtA(amer(1+(d-1)*SGP_CUT(pick.length)))}</strong></div>
+    ${pr.b?`<div class="stat"><small>With ${pr.b*100}% boost</small><strong>~${fmtA(amer(1+(d-1)*SGP_CUT(pick.length)*(1+pr.b)))}</strong></div>`:""}
     <div class="stat"><small>Model chance</small><strong>${pct(P,1)}</strong></div>
-    <div class="stat"><small>Take it at</small><strong>${fmtA(amer(1/P))}+</strong></div></div>
+    <div class="stat"><small>${pr.b?"Take it at (book price, before boost)":pr.bonus?"Take it at (token)":"Take it at"}</small><strong>${fmtA(amer(1+(1/P-1)/(1+pr.b)))}+</strong></div>
+    ${pr.bonus?`<div class="stat"><small>Token worth</small><strong>~${pct(P*(1+(d-1)*SGP_CUT(pick.length)-1))} of face</strong></div>`:""}</div>
+   ${pr.none?`<p class="hint w" style="color:var(--warn)">No promo selected. Your rule is to bet only with a boost or bonus bet; one +1000 a week on your own game-script read is the exception.</p>`:`<p class="hint">Aiming for about ${fmtA(boostedTgt)} after the ${pr.bonus?"bonus bet":pr.b*100+"% boost"}: that's a book price near ${fmtA(amer(baseD))}.</p>`}
    <ul class="notes">
     ${!r.reached?`<li class="w">Only ${pick.length} value leg${pick.length>1?"s":""} fit this script, so the slip tops out at ${fmtA(amer(d))}.</li>`:""}
     ${r.nu?'<li class="w">One leg is neutral: it has value but no link to the story, added to reach the target.</li>':""}
@@ -1510,6 +1518,7 @@ function renderScript(){
 $("scb-game").addEventListener("change",()=>{$("scb-script").innerHTML="";fillScripts();renderScript()});
 $("scb-script").addEventListener("change",renderScript);
 $("scb-target").addEventListener("change",renderScript);
+$("scb-promo").value=store.get("pf_scbpromo","0");$("scb-promo").addEventListener("change",()=>{store.set("pf_scbpromo",$("scb-promo").value);renderScript()});
 $("scb-style").value=store.get("pf_scbstyle","val");$("scb-style").addEventListener("change",()=>{store.set("pf_scbstyle",$("scb-style").value);renderScript()});
 $("rulesform").addEventListener("change",()=>{renderValue();renderScript()});
 
