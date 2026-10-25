@@ -1458,7 +1458,7 @@ function buildScript(g,sc,tgt,style="val"){const safe=style==="safe",maxL=safe?8
   const story=cands.filter(r=>r.fit>0).sort(order),neutral=cands.filter(r=>r.fit===0).sort(order);
   const pick=[],used=new Set();let d=1,td=0,nu=0;
   // skip a leg that would blow far past the target once there are 2+ legs (a +300 slip shouldn't land at +700)
-  const take=r=>{if(d>=dec(tgt)||pick.length>=maxL||used.has(r.player))return;if(pick.length>=2&&d*dec(r.odds)>dec(tgt)*1.5)return;const isTd=!!STATS[r.stat].td;if(isTd&&td)return;
+  const take=r=>{if(d>=dec(tgt)||pick.length>=maxL||used.has(r.player))return;if(pick.length>=1&&d*dec(r.odds)>dec(tgt)*1.35)return;const isTd=!!STATS[r.stat].td;if(isTd&&td)return;
     if(r.fit===0){if(nu)return;nu++}if(isTd)td++;pick.push({...r,why:legWhy(r,sc,g)});used.add(r.player);d*=dec(r.odds)};
   story.forEach(take);neutral.forEach(take);
   const P=pick.reduce((m,r)=>m*r.p,1);return{sc,style,pick,d,P,ev:pick.length?P*d-1:-1,nu,reached:d>=dec(tgt)}}
@@ -1518,7 +1518,10 @@ function renderScript(){
 $("scb-game").addEventListener("change",()=>{$("scb-script").innerHTML="";fillScripts();renderScript()});
 $("scb-script").addEventListener("change",renderScript);
 $("scb-target").addEventListener("change",renderScript);
-$("scb-promo").value=store.get("pf_scbpromo","0");$("scb-promo").addEventListener("change",()=>{store.set("pf_scbpromo",$("scb-promo").value);renderScript()});
+// regular promo bets aim for +600 after the boost (3 steadier legs); bonus tokens and the weekly game-script bet aim for +1000
+const promoTarget=v=>v==="20"||v==="30"||v==="50"?"+600":"+1000";
+$("scb-promo").value=store.get("pf_scbpromo","0");$("scb-target").value=promoTarget($("scb-promo").value);
+$("scb-promo").addEventListener("change",()=>{const v=$("scb-promo").value;store.set("pf_scbpromo",v);$("scb-target").value=promoTarget(v);renderScript()});
 $("scb-style").value=store.get("pf_scbstyle","val");$("scb-style").addEventListener("change",()=>{store.set("pf_scbstyle",$("scb-style").value);renderScript()});
 $("rulesform").addEventListener("change",()=>{renderValue();renderScript()});
 
