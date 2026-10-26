@@ -460,6 +460,9 @@ function lastStarter(team){const by=new Map();
 function context(p,stat,side,team,opp,line){
   const out={flags:[],notes:[]};if(!D)return out;const S=STATS[stat],over=side!=="Under",myG=GRP[p.p],recv=S.k==="rec"||stat==="Rush + Rec Yards";
   const sameRole=g=>g===myG||(recv&&(g==="WR"||g==="TE"||g==="RB"));
+  if(!over){const sp=teamSpread(team);
+    if(!ATT.has(stat))out.flags.push(`Breaks your under rule: unders only on pass or rush attempts${p.p==="RB"&&S.k==="rec"?" (a trailing team dumps passes to its RB, so catch unders are fragile)":""}`);
+    else if(sp==null||(stat==="Pass Attempts"?sp<4:sp>-4))out.flags.push(`Breaks your under rule: needs a 4+ point spread (${stat==="Pass Attempts"?"favorite":"underdog"})`)}
   if(IJ){const outs=IJ.players.filter(e=>e.t===team&&e.cur&&(e.gs==="Out"||e.gs==="Doubtful")&&e.snap>=.35&&nrm(e.n)!==nrm(p.n));
     const qb=outs.find(e=>e.grp==="QB"&&e.snap>=.5&&nrm(e.n)===lastStarter(team));
     if(qb&&p.p!=="QB")out.flags.push(`QB ${qb.n} ${qb.gs.toLowerCase()}: backup QB changes the whole offense`);
