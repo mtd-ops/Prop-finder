@@ -515,9 +515,11 @@ function context(p,stat,side,team,opp,line){
   // depth of target: deep targets make catches lumpy, short targets make them steady
   if(over&&recv&&myG!=="QB"){const t=curTeam(p),gs=p.g.filter(x=>x[0]===D.latest.season&&x[C.team]===t).slice(-6),tg=gs.reduce((a,x)=>a+x[C.tgt],0);
     if(tg>=10){const adot=gs.reduce((a,x)=>a+x[C.air],0)/tg;
-      if(stat==="Receptions"&&adot>=13)out.flags.push(`Deep threat (${adot.toFixed(1)} yd avg target): catches come in bunches or not at all`);
+      // deep targets make yards boom-or-bust (flag); for catches, enough volume (8+ targets a game) smooths it out (note only)
+      const tpg=tg/gs.length;
+      if(stat==="Receptions"&&adot>=13){const t=`Deep threat (${adot.toFixed(1)} yd avg target)`;tpg>=8?out.notes.push(`${t}, but ${tpg.toFixed(1)} targets a game keeps catches steady`):out.flags.push(`${t}: catches come in bunches or not at all`)}
       else if(stat==="Receptions"&&adot<=7)out.notes.push(`Short-area target (${adot.toFixed(1)} yd avg): steady catches`);
-      else if(/Yards/.test(stat)&&adot>=13)out.notes.push(`Deep threat (${adot.toFixed(1)} yd avg target): one catch can clear it, or none`)}}
+      else if(/Yards/.test(stat)&&adot>=13)out.flags.push(`Deep threat (${adot.toFixed(1)} yd avg target): yards are boom or bust; take his catches instead`)}}
   // wind hurts passing and receiving
   const gm=IJ&&IJ.games&&IJ.games.find(x=>x.a===team||x.h===team);
   if(gm&&gm.wx&&(S.k==="pass"||recv)&&gm.wx.wind>=15){const t=`Wind ${gm.wx.wind} mph (gusts ${gm.wx.gust}) at kickoff`;over?out.flags.push(t):out.notes.push(t)}
