@@ -126,6 +126,20 @@
    "close": null,
    "cash": null,
    "result": "pending"
+  },
+  {
+   "id": "fd-sgpplus-1025-dal-kc",
+   "at": 1792973400213,
+   "label": "FanDuel SGP+ (+30% boost): Dak O268.5 pass yds + Lamb O7.5 rec (DAL@PHI Mon); Walker O79.5 rush yds (KC@SEA)",
+   "stat": "Parlay",
+   "side": "",
+   "odds": 459,
+   "boost": 30,
+   "p": 0.19,
+   "stake": 10,
+   "close": null,
+   "cash": null,
+   "result": "pending"
   }
  ]
 }
