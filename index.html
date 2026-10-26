@@ -497,8 +497,9 @@ function context(p,stat,side,team,opp,line){
   {const t=curTeam(p),gs=p.g.filter(x=>x[0]===D.latest.season&&x[C.team]===t).slice(-6),rushStat=S.k==="rush"||stat==="Rush + Rec Yards";
    const share=key=>{let me=0,tm=0;for(const x of gs){const tt=teamTot.get(x[0]+"|"+x[1]+"|"+t);if(!tt||!tt[key])continue;me+=x[C[key]];tm+=tt[key]}return tm?me/tm:null};
    if(gs.length>=2&&over){
-    if(myG==="RB"&&rushStat){const cs=share("car");if(cs!=null){if(cs<.55)out.flags.push(`Split backfield: ${Math.round(cs*100)}% of ${t}'s RB carries`);else if(cs>=.65)out.notes.push(`Workhorse: ${Math.round(cs*100)}% of ${t}'s RB carries`)}}
-    if(recv&&myG!=="QB"){const ts=share("tgt"),lo=myG==="RB"?.08:.15;if(ts!=null){if(ts<lo)out.flags.push(`Low target share: ${Math.round(ts*100)}% of ${t}'s targets`);else if(ts>=.24)out.notes.push(`Target hog: ${Math.round(ts*100)}% of ${t}'s targets`)}}
+    if(myG==="RB"&&rushStat){const cs=share("car");if(cs!=null){if(cs<.55)out.flags.push(`Split backfield: ${Math.round(cs*100)}% of ${t}'s RB carries`);else if(cs<.65&&stat==="Rush Yards")out.flags.push(`Not a workhorse: ${Math.round(cs*100)}% of ${t}'s RB carries (rush yards need 65%+; try his attempts instead)`);else if(cs>=.65)out.notes.push(`Workhorse: ${Math.round(cs*100)}% of ${t}'s RB carries`)}}
+    if(recv&&myG!=="QB"){const ts=share("tgt"),lo=myG==="RB"?.10:.15;if(ts!=null){if(ts<lo)out.flags.push(`Low target share: ${Math.round(ts*100)}% of ${t}'s targets${myG==="RB"?" (not part of the passing plan)":""}`);else if(myG==="RB"&&ts>=.12)out.notes.push(`Pass-game back: ${Math.round(ts*100)}% of ${t}'s targets`);else if(ts>=.24)out.notes.push(`Target hog: ${Math.round(ts*100)}% of ${t}'s targets`)}}
+    if(myG==="RB"&&stat==="Rush Yards"){const m=defMatch(stat,"RB",opp);if(m&&m.tough)out.flags.push(`Tough run defense: ${opp} is ${m.label} in rush yds allowed`)}
     if(myG==="QB"&&S.k==="rush"){const ca=mean(gs.map(x=>x[C.car])),yd=mean(gs.map(x=>x[C.ryd]));
       if(ca<4||yd<15)out.flags.push(`Pocket QB: ${ca.toFixed(1)} runs, ${yd.toFixed(0)} yds a game; rushing comes from scrambles`);else out.notes.push(`Running QB: ${ca.toFixed(1)} runs a game`)}}}
   // floor: how often he's been nowhere near this line (a swingy player can average the line and still miss a lot)
@@ -1457,7 +1458,9 @@ function fillScripts(){const g=(ODDS&&ODDS.games||[]).find(x=>x.id===$("scb-game
 // style "val": highest edge first, up to 6 legs. "safe": only legs at +150 or shorter, most likely first, up to 8.
 function buildScript(g,sc,tgt,style="val"){const safe=style==="safe",maxL=safe?8:6;
   const cands=scanProps(g.id).filter(r=>!r.flags.length&&!r.out&&r.edge>=R.edge/100&&underOk(r)&&(!safe||r.odds<=150)).map(r=>({...r,fit:legFit(r,sc,g)})).filter(r=>r.fit>=0);
-  const order=safe?(a,b)=>b.p-a.p||b.edge-a.edge:(a,b)=>b.edge-a.edge;
+  // players whose role makes the stat steady (workhorse back, target hog, pass-game back, running QB) go first
+  const rs=r=>(r.cx||[]).filter(n=>/^(Workhorse|Target hog|Running QB|Pass-game back)/.test(n)).length;
+  const order=safe?(a,b)=>(b.p+.03*rs(b))-(a.p+.03*rs(a))||b.edge-a.edge:(a,b)=>(b.edge+.02*rs(b))-(a.edge+.02*rs(a));
   const story=cands.filter(r=>r.fit>0).sort(order),neutral=cands.filter(r=>r.fit===0).sort(order);
   const pick=[],used=new Set();let d=1,td=0,nu=0;
   // skip a leg that would blow far past the target once there are 2+ legs (a +300 slip shouldn't land at +700)
