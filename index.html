@@ -728,6 +728,11 @@ function renderParlay(){
   const ev=P*Dpay-1,need=1/Dpay,cls=P-need>=.025?"good":P-need>=.005?"warn":"bad";
   const linked=[];for(let i=0;i<legs.length;i++)for(let j=i+1;j<legs.length;j++){const a=legs[i],b=legs[j];
     if(a.player===b.player||a.team===b.team||(a.opp&&a.opp===b.team)||(b.opp&&b.opp===a.team))linked.push(`#${i+1} & #${j+1}`)}
+  // game-script conflicts: a 4+ point favorite that gets its lead runs the clock, so its passing volume dries up;
+  // a 4+ point underdog that falls behind abandons the run. Those overs fight the game the spread expects.
+  const scr=[];legs.forEach((l,i)=>{if(l.side==="Under"||!STATS[l.stat])return;const sp=teamSpread(l.team),k=STATS[l.stat].k;if(sp==null)return;
+    if(sp>=4&&(k==="pass"||k==="rec")&&l.stat!=="Rush + Rec Yards")scr.push(`#${i+1} ${esc(l.player)}: ${l.team} is favored by ${sp}. A favorite that gets its lead runs the clock, so its passing and catch totals dry up late. In a favorite-controls slip, take ${l.team}'s RB rush attempts or the other team's passing instead.`);
+    else if(sp<=-4&&k==="rush"&&l.stat!=="Rush + Rec Yards"&&GRP[(byName.get(l.player.toLowerCase())||{}).p]!=="QB")scr.push(`#${i+1} ${esc(l.player)}: ${l.team} is a ${-sp}-point underdog. A team that falls behind stops running, so this over fights the expected game.`)});
   out.innerHTML=`<div class="verdict v-${cls}"><b>${cls==="good"?"Good value":cls==="warn"?"Thin value":"No value"} · ${fmtA(amer(Dpay))}</b>
    <span>Model chance all ${legs.length} hit: ${pct(P,1)} (about 1 in ${(1/P).toFixed(1)}). This price needs ${pct(need,1)}.</span></div>
   <div class="card"><h2>The slip</h2><div class="stats">
@@ -735,6 +740,7 @@ function renderParlay(){
    <div class="stat"><small>Book price</small><strong>${site!=null?fmtA(site):"—"}</strong></div>
    <div class="stat"><small>With boost</small><strong>${fmtA(amer(Dpay))}</strong></div>
    <div class="stat"><small>$${stake} returns</small><strong>$${(stake*Dpay).toFixed(2)}</strong></div></div>
+   ${scr.length?`<div class="verdict v-bad"><b>Game-script conflict</b><span>${scr.join("<br>")}</span></div>`:""}
    <ul class="notes">
     <li>Expected value: ${ev>=0?"+":""}${pct(ev,1)} per dollar, about ${ev>=0?"+":"-"}$${Math.abs(stake*ev).toFixed(2)} per $${stake} bet on average.</li>
     ${site!=null?`<li>The book pays ${site<amer(Dm)?`less than the multiplied legs (${fmtA(amer(Dm))}). It is charging extra because it thinks these legs move together.`:"at least as much as the multiplied legs."}</li>`:'<li>Enter the book\'s parlay price above to compare it to the legs multiplied.</li>'}
@@ -1428,7 +1434,7 @@ $("val-stat").addEventListener("click",e=>{const b=e.target.closest("button");if
 function scriptReq(sc,team,g){if(sc==="shoot")return{P:1,R:0,S:1};if(sc==="grind")return{P:-1,R:1,S:-1};
   const ctl=sc==="a"?g.a:g.h;return team===ctl?{P:-1,R:1,S:1}:{P:1,R:-1,S:-1}}
 function legKind(r){const S=STATS[r.stat];if(S.td)return"S";if(S.k==="pass"||S.k==="rec")return"P";
-  if(r.pos==="RB"&&(r.stat==="Rushing Yards"||r.stat==="Rush + Rec Yards"))return"R";return""}
+  if(r.pos==="RB"&&(r.stat==="Rushing Yards"||r.stat==="Rush Attempts"||r.stat==="Rush + Rec Yards"))return"R";return""}
 // a QB's attempts/completions only stay low when his own team is ahead; a trailing team throws
 // even in a low-scoring game, so these unders only fit the script where that QB's team is in control
 const VOL=new Set(["Pass Attempts","Pass Completions"]);
