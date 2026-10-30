@@ -345,6 +345,9 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
 <script>
 (()=>{
 const $=id=>document.getElementById(id);
+// how much the model's own number counts against the market's no-vig price. Week 7 tracking (386 graded value picks)
+// hit 47% while the model said about 58%: it is overconfident, so the market gets more say (was 50/50).
+const MODEL_W=.35;
 const C={season:0,week:1,team:2,opp:3,comp:4,att:5,pyd:6,ptd:7,int:8,sk:9,car:10,ryd:11,rtd:12,tgt:13,rec:14,cyd:15,ctd:16,air:17};
 const STATS={
  "Receiving Yards":{f:g=>g[C.cyd],k:"rec"},"Receptions":{f:g=>g[C.rec],k:"rec"},"Targets":{f:g=>g[C.tgt],k:"rec"},
@@ -603,7 +606,7 @@ function check(e){
   if(u!=null)sides.push({side:"Under",p:pp<1?pu/(1-pp):0,odds:u});
   // Blend the model halfway toward the book's no-vig price: the backtest showed the raw model ran ~8 points too confident.
   {const both=sides.length===2?[imp(sides[0].odds),imp(sides[1].odds)]:null;
-   sides.forEach((x,i)=>{x.raw=x.p;const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/(ms?1.12:1.07);x.p=.5*x.p+.5*Math.min(pm,.99)})}
+   sides.forEach((x,i)=>{x.raw=x.p;const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/(ms?1.12:1.07);x.p=MODEL_W*x.p+(1-MODEL_W)*Math.min(pm,.99)})}
   sides.forEach(x=>{x.need=imp(x.odds);x.edge=x.p-x.need;x.ev=x.p*(dec(x.odds)-1)-(1-x.p)});
   const best=sides.reduce((a,b)=>b.edge>a.edge?b:a);
   const cls=best.edge>=.025?"good":best.edge>=.005?"warn":"bad";
@@ -1324,7 +1327,7 @@ function evalLine(p,stat,line,o,u,opp,vig=1.07){
   if(u!=null)sides.push({side:"Under",p:pp<1?pu/(1-pp):0,odds:u,hit:vals.filter(v=>v<line).length});
   if(!sides.length)return null;
   const both=sides.length===2?[imp(sides[0].odds),imp(sides[1].odds)]:null;
-  sides.forEach((x,i)=>{const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/vig;x.p=.5*x.p+.5*Math.min(pm,.99);x.edge=x.p-imp(x.odds)});
+  sides.forEach((x,i)=>{const pm=both?both[i]/(both[0]+both[1]):imp(x.odds)/vig;x.p=MODEL_W*x.p+(1-MODEL_W)*Math.min(pm,.99);x.edge=x.p-imp(x.odds)});
   const real=sel.filter(z=>!z.zero);
   return{sides,N,vals,Nall:gamesFor(p,{zfill:true,qbskip:true}).length,use:real.length?mean(real.map(z=>z[C.tgt]+z[C.car])):0};
 }
@@ -1340,6 +1343,7 @@ function scanProps(gameId){
       const best=r.sides.reduce((a,b)=>b.edge>a.edge?b:a),flags=[];
       if(onRep)flags.push(ij.gs||({DNP:"Did not practice",Limited:"Limited practice"}[ij.ps]||"On injury report"));
       if(best.edge>.10)flags.push("Edge over 10%: the model may be missing something");
+      if(stat==="Passing Yards"&&best.side==="Over")flags.push("QB passing yards over: the model's tracked picks went 4 for 24 on these; it runs too high on QB yards");
       if(r.Nall<R.games)flags.push(`Only ${r.Nall} games`);
       if(p.p!=="QB"&&r.use<3)flags.push("Small role");
       const cx=context(p,stat,best.side,team,opp,c.line);flags.push(...cx.flags);
