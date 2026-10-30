@@ -228,7 +228,7 @@ details.alt>summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:4
       <label for="scb-target">Target (after boost)<input id="scb-target" inputmode="numeric" value="+1000"></label>
     </div>
     <label for="scb-promo">Promo<select id="scb-promo"><option value="0">None (your rule: skip)</option><option value="20">20% profit boost</option><option value="30">30% profit boost</option><option value="50">50% profit boost</option><option value="bonus">Bonus bet</option></select></label>
-    <label for="scb-style">Legs<select id="scb-style"><option value="val">Best value first (fewer, longer legs)</option><option value="safe">More, safer legs (each +150 or shorter, up to 8)</option></select></label>
+    <label for="scb-style">Legs<select id="scb-style"><option value="val">Best value first (fewer, longer legs)</option><option value="safe">More, safer legs (each +150 or shorter, up to 8)</option><option value="mine">My rules: top targets, steady legs, up to 4</option></select></label>
     <div id="scb-out"></div>
   </div>
   <details class="alt"><summary>No lines for a game yet? Use the milestone builder</summary>
@@ -364,8 +364,8 @@ const SHORT={"Receiving Yards":"rec yds","Receptions":"receptions","Rushing Yard
  "Passing Yards":"pass yds","Pass Attempts":"pass att","Anytime TD (rush + rec)":"anytime TD"};
 let PICKS=store.get("pf_picks",{}),SLIPS=store.get("pf_slips",{}),CLOSE=null,slipSig="";
 const SLIP_TGT=1000; // the app's own Auto parlays per game, tracked on paper: +1000 in both leg styles, plus a smaller +300
-const SLIP_KINDS=[[1000,"val",""],[1000,"safe","|safe"],[300,"safe","|300"]];
-const slipKind=x=>(x.tgt||1000)===300?"Small +300":x.style==="safe"?"+1000 safer legs":"+1000 best value"; // every value-list pick (this browser), and closing.json
+const SLIP_KINDS=[[1000,"val",""],[1000,"safe","|safe"],[300,"safe","|300"],[400,"mine","|mine"]];
+const slipKind=x=>x.style==="mine"?"My rules +400":(x.tgt||1000)===300?"Small +300":x.style==="safe"?"+1000 safer legs":"+1000 best value"; // every value-list pick (this browser), and closing.json
 // Parlay legs persist to the viewer's private db document when available; browser storage is the fallback.
 let legsRef=null,saving=Promise.resolve(),syncState="local";
 function saveLegs(){
@@ -1332,7 +1332,7 @@ function evalLine(p,stat,line,o,u,opp,vig=1.07){
   return{sides,N,vals,Nall:gamesFor(p,{zfill:true,qbskip:true}).length,use:real.length?mean(real.map(z=>z[C.tgt]+z[C.car])):0};
 }
 // every line the chosen book has for upcoming games, best side of each, with red flags
-function scanProps(gameId){
+function scanProps(gameId,mine=false){
   const rows=[];if(!ODDS||!D)return rows;const now=Date.now(),idx=pByN();
   for(const e of oddsIdx.values()){const g=e.g;if(!g.a||Date.parse(g.t)<=now||(gameId&&g.id!==gameId))continue;
     const p=(idx.get(nrm(e.name))||[]).find(x=>{const t=curTeam(x);return t===g.a||t===g.h});if(!p)continue;
@@ -1340,7 +1340,8 @@ function scanProps(gameId){
     const ij=IJ?ijByKey.get(nrm(p.n)+"|"+team):null,onRep=ij&&ij.cur&&ij.inj!=="Rest / not injury"&&(ij.gs||ij.ps!=="Full");
     for(const[stat,mk]of Object.entries(MKT)){const c=e.L[mk]&&e.L[mk][BOOK];if(!c||c.line==null)continue;
       const r=evalLine(p,stat,c.line,c.over??null,STATS[stat].td?null:(c.under??null),opp);if(!r)continue;
-      const best=r.sides.reduce((a,b)=>b.edge>a.edge?b:a),flags=[];
+      // "mine" looks at the over on every line (and the under only on attempts), not just the model's favorite side
+      for(const best of mine?r.sides.filter(x=>x.side==="Over"||ATT.has(stat)):[r.sides.reduce((a,b)=>b.edge>a.edge?b:a)]){const flags=[];
       if(onRep)flags.push(ij.gs||({DNP:"Did not practice",Limited:"Limited practice"}[ij.ps]||"On injury report"));
       if(best.edge>.10)flags.push("Edge over 10%: the model may be missing something");
       if(stat==="Passing Yards"&&best.side==="Over")flags.push("QB passing yards over: the model's tracked picks went 4 for 24 on these; it runs too high on QB yards");
@@ -1350,11 +1351,13 @@ function scanProps(gameId){
       {const b=boom(stat,best.side,c.line,r.vals);if(b)flags.push(b)}
       const sh=STATS[stat].td?null:seasonHits(p,stat,c.line,best.side);
       rows.push({cx:cx.notes,sh,mu:defMatch(stat,p.p,opp),player:p.n,pos:p.p,team,opp,g,stat,line:c.line,side:best.side,odds:best.odds,p:best.p,edge:best.edge,hit:best.hit,N:r.N,flags,
-        out:!!(ij&&ij.cur&&(ij.gs==="Out"||ij.gs==="Doubtful"))})}
+        out:!!(ij&&ij.cur&&(ij.gs==="Out"||ij.gs==="Doubtful"))})}}
     // milestones (X+ = over X-0.5) from the ladder: the best-value rung per player and stat, priced -500 to +500
     for(const[stat,mk]of Object.entries(ALT)){const lad=e.A&&e.A[mk]&&e.A[mk][BOOK];if(!lad)continue;const main=e.L[MKT[stat]]&&e.L[MKT[stat]][BOOK];let bb=null;
       for(const rr of lad){const L=rr[0],o=rr[1];if(L==null||o==null||o>500||o<-500||(main&&same(main.line,L)))continue;
-        const r=evalLine(p,stat,L,o,null,opp,1.12);if(!r)continue;const x=r.sides[0];if(!bb||x.edge>bb.x.edge)bb={r,x,L}}
+        const r=evalLine(p,stat,L,o,null,opp,1.12);if(!r)continue;const x=r.sides[0];
+        if(mine){const[h,n]=seasonHits(p,stat,L,"Over");if(n<4||h/n<.57||o<-250)continue;if(!bb||o>bb.x.odds)bb={r,x,L};continue} // steadiest rung that still pays: highest price among 60%+ hit rates
+        if(!bb||x.edge>bb.x.edge)bb={r,x,L}}
       if(!bb)continue;const{r,x,L}=bb,flags=[];
       if(onRep)flags.push(ij.gs||({DNP:"Did not practice",Limited:"Limited practice"}[ij.ps]||"On injury report"));
       if(x.edge>.10)flags.push("Edge over 10%: the model may be missing something");
@@ -1468,11 +1471,27 @@ function fillScripts(){const g=(ODDS&&ODDS.games||[]).find(x=>x.id===$("scb-game
   sel.value=cur&&[...sel.options].some(o=>o.value===cur)?cur:"auto"}
 // value legs that fit the script, story legs first; at most one neutral leg and one TD leg, one leg per player
 // style "val": highest edge first, up to 6 legs. "safe": only legs at +150 or shorter, most likely first, up to 8.
-function buildScript(g,sc,tgt,style="val"){const safe=style==="safe",maxL=safe?8:6;
-  const cands=scanProps(g.id).filter(r=>!r.flags.length&&!r.out&&r.edge>=R.edge/100&&underOk(r)&&(!safe||r.odds<=150)).map(r=>({...r,fit:legFit(r,sc,g)})).filter(r=>r.fit>=0);
+// "mine": M's own rules. Legs that have hit this line in 4 of 7 (57%+) this season, top targets only (WRs 18%+ of
+// the team's targets, TEs 15%+, RBs 12%+ for catch legs), RB rush yards only for workhorses, QB rushing only for running QBs,
+// no QB passing-yard overs, no TDs, unders only on attempts with the spread rule. Model edge only has to be no worse
+// than -6%; the model's job here is the price check, not the pick.
+const shareOf=(name,team,key)=>{const p=byName.get(name.toLowerCase());if(!p||!D)return null;
+  const gs=p.g.filter(x=>x[0]===D.latest.season&&x[C.team]===team).slice(-6);let me=0,tm=0;
+  for(const x of gs){const tt=teamTot.get(x[0]+"|"+x[1]+"|"+team);if(!tt||!tt[key])continue;me+=x[C[key]];tm+=tt[key]}return tm?me/tm:null};
+function mineOk(r){const S=STATS[r.stat],h=r.sh&&r.sh[1]>=4?r.sh[0]/r.sh[1]:r.N>=4?r.hit/r.N:0;if(r.flags.length||S.td||h<.57||r.edge<-.06)return false;
+  if(r.side==="Under")return ATT.has(r.stat);
+  if(r.stat==="Passing Yards")return false;
+  const cx=r.cx||[],has=t=>cx.some(n=>n.startsWith(t));
+  if(S.k==="rec"&&r.stat!=="Rush + Rec Yards"){const sh=shareOf(r.player,r.team,"tgt");if(sh==null||sh<(r.pos==="RB"?.12:r.pos==="TE"?.15:.18))return false}
+  if(r.pos==="RB"&&r.stat==="Rushing Yards"&&!has("Workhorse"))return false;
+  if(r.pos==="QB"&&S.k==="rush"&&!has("Running QB"))return false;
+  return true}
+function buildScript(g,sc,tgt,style="val"){const safe=style==="safe",mine=style==="mine",maxL=safe?8:mine?4:6;
+  const cands=scanProps(g.id,mine).filter(r=>!r.out&&underOk(r)&&(mine?mineOk(r):!r.flags.length&&r.edge>=R.edge/100&&(!safe||r.odds<=150))).map(r=>({...r,fit:legFit(r,sc,g)})).filter(r=>r.fit>=0);
   // players whose role makes the stat steady (workhorse back, target hog, pass-game back, running QB) go first
   const rs=r=>(r.cx||[]).filter(n=>/^(Workhorse|Target hog|Running QB|Pass-game back)/.test(n)).length;
-  const order=safe?(a,b)=>(b.p+.03*rs(b))-(a.p+.03*rs(a))||b.edge-a.edge:(a,b)=>(b.edge+.02*rs(b))-(a.edge+.02*rs(a));
+  const hr=r=>r.sh&&r.sh[1]>=4?r.sh[0]/r.sh[1]:r.N?r.hit/r.N:0;
+  const order=mine?(a,b)=>hr(b)-hr(a)||b.p-a.p:safe?(a,b)=>(b.p+.03*rs(b))-(a.p+.03*rs(a))||b.edge-a.edge:(a,b)=>(b.edge+.02*rs(b))-(a.edge+.02*rs(a));
   const story=cands.filter(r=>r.fit>0).sort(order),neutral=cands.filter(r=>r.fit===0).sort(order);
   const pick=[],used=new Set();let d=1,td=0,nu=0;
   // skip a leg that would blow far past the target once there are 2+ legs (a +300 slip shouldn't land at +700)
@@ -1614,11 +1633,11 @@ function slipCheck(){const all=Object.values(SLIPS).filter(s=>!s.four);
     <div class="stat"><small>Model said legs hit</small><strong>${pct(lexp)}</strong></div></div>
     <p class="hint">${story.length?`Story legs (the ones that fit the script) hit ${sh} of ${story.length}. `:""}Units are 1 unit per slip. DraftKings' real SGP price is usually somewhere between the two.</p>
     <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Slip</th><th class="num">N</th><th class="num">W-L</th><th class="num">Exp.</th><th class="num">Legs</th><th class="num">Units</th></tr></thead><tbody>
-    ${["Small +300","+1000 best value","+1000 safer legs"].map(lab=>{const a=done.filter(x=>slipKind(x)===lab);if(!a.length)return"";const ww=a.filter(x=>x.r==="win").length,u=a.reduce((m,x)=>m+(x.r==="win"?x.estWin-1:-1),0);
+    ${["My rules +400","Small +300","+1000 best value","+1000 safer legs"].map(lab=>{const a=done.filter(x=>slipKind(x)===lab);if(!a.length)return"";const ww=a.filter(x=>x.r==="win").length,u=a.reduce((m,x)=>m+(x.r==="win"?x.estWin-1:-1),0);
       return`<tr><td>${lab}</td><td class="num">${a.length}</td><td class="num">${ww}-${a.length-ww}</td><td class="num">${a.reduce((m,x)=>m+x.P,0).toFixed(1)}</td><td class="num">${mean(a.map(x=>x.legs.length)).toFixed(1)}</td><td class="num">${sgn(u)}${u.toFixed(1)}u</span></td></tr>`}).join("")}
     </tbody></table></div>
     <div class="scroll"><table class="pk" style="font-size:12px"><thead><tr><th>Game</th><th>Slip</th><th class="num">Legs</th><th class="num">Price</th><th>Result</th></tr></thead><tbody>
-    ${done.slice(0,12).map(s=>`<tr><td>${esc(s.game)}</td><td>${(s.tgt||1000)===300?"+300":s.style==="safe"?"Safer":"Value"}</td><td class="num">${s.legs.filter(l=>l.r==="hit").length}/${s.legs.length}</td><td class="num">${fmtA(amer(s.est))}</td><td><span class="pill ${s.r==="win"?"p-good":"p-bad"}">${s.r==="win"?"Win":"Loss"}</span></td></tr>`).join("")}
+    ${done.slice(0,12).map(s=>`<tr><td>${esc(s.game)}</td><td>${s.style==="mine"?"Mine":(s.tgt||1000)===300?"+300":s.style==="safe"?"Safer":"Value"}</td><td class="num">${s.legs.filter(l=>l.r==="hit").length}/${s.legs.length}</td><td class="num">${fmtA(amer(s.est))}</td><td><span class="pill ${s.r==="win"?"p-good":"p-bad"}">${s.r==="win"?"Win":"Loss"}</span></td></tr>`).join("")}
     </tbody></table></div>`:""}`+fourCheck()}
 // every game's four scripts side by side: which story the legs actually told
 function fourCheck(){const all=Object.values(SLIPS).filter(s=>s.four),done=all.filter(s=>s.r==="win"||s.r==="loss");
