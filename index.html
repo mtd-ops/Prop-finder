@@ -500,6 +500,10 @@ function context(p,stat,side,team,opp,line){
   {const t=curTeam(p),gs=p.g.filter(x=>x[0]===D.latest.season&&x[C.team]===t).slice(-6),rushStat=S.k==="rush"||stat==="Rush + Rec Yards";
    const share=key=>{let me=0,tm=0;for(const x of gs){const tt=teamTot.get(x[0]+"|"+x[1]+"|"+t);if(!tt||!tt[key])continue;me+=x[C[key]];tm+=tt[key]}return tm?me/tm:null};
    if(gs.length>=2&&over){
+    // a teammate back just had a big game: carries may be shifting (Corum 17 carries the week before Kyren went quiet)
+    if(myG==="RB"&&rushStat){const last=gs[gs.length-1];if(last)for(const q of D.players){if(q===p||q.p!=="RB")continue;
+      const qg=q.g.filter(x=>x[0]===D.latest.season&&x[C.team]===t);const ql=qg.find(x=>x[1]===last[1]);if(!ql||qg.length<3)continue;
+      const prev=mean(qg.filter(x=>x!==ql).map(x=>x[C.car]));if(ql[C.car]>=Math.max(12,prev*1.6))out.flags.push(`Backfield shifting: ${q.n} had ${ql[C.car]} carries last game vs ${prev.toFixed(1)} before`)}}
     if(myG==="RB"&&rushStat){const cs=share("car");if(cs!=null){if(cs<.55)out.flags.push(`Split backfield: ${Math.round(cs*100)}% of ${t}'s RB carries`);else if(cs<.65&&stat==="Rush Yards")out.flags.push(`Not a workhorse: ${Math.round(cs*100)}% of ${t}'s RB carries (rush yards need 65%+; try his attempts instead)`);else if(cs>=.65)out.notes.push(`Workhorse: ${Math.round(cs*100)}% of ${t}'s RB carries`)}}
     if(recv&&myG!=="QB"){const ts=share("tgt"),lo=myG==="RB"?.10:.15;if(ts!=null){if(ts<lo)out.flags.push(`Low target share: ${Math.round(ts*100)}% of ${t}'s targets${myG==="RB"?" (not part of the passing plan)":""}`);else if(myG==="RB"&&ts>=.12)out.notes.push(`Pass-game back: ${Math.round(ts*100)}% of ${t}'s targets`);else if(ts>=.24)out.notes.push(`Target hog: ${Math.round(ts*100)}% of ${t}'s targets`)}}
     if(myG==="RB"&&stat==="Rush Yards"){const m=defMatch(stat,"RB",opp);if(m&&m.tough)out.flags.push(`Tough run defense: ${opp} is ${m.label} in rush yds allowed`)}
@@ -1483,7 +1487,7 @@ function mineOk(r){const S=STATS[r.stat],h=r.sh&&r.sh[1]>=4?r.sh[0]/r.sh[1]:r.N>
   if(r.stat==="Passing Yards")return false;
   const cx=r.cx||[],has=t=>cx.some(n=>n.startsWith(t));
   if(S.k==="rec"&&r.stat!=="Rush + Rec Yards"){const sh=shareOf(r.player,r.team,"tgt");if(sh==null||sh<(r.pos==="RB"?.12:r.pos==="TE"?.15:.18))return false}
-  if(r.pos==="RB"&&r.stat==="Rushing Yards"&&!has("Workhorse"))return false;
+  if(r.pos==="RB"&&S.k==="rush"&&r.stat!=="Rush + Rec Yards"&&!has("Workhorse"))return false; // attempts too: a 58% back lost his carries to Corum (Week 9)
   if(r.pos==="QB"&&S.k==="rush"&&!has("Running QB"))return false;
   return true}
 function buildScript(g,sc,tgt,style="val"){const safe=style==="safe",mine=style==="mine",maxL=safe?8:mine?4:6;
