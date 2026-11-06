@@ -29,6 +29,7 @@ MARKETS = ["player_reception_yds", "player_receptions", "player_rush_yds", "play
 ALT_MARKETS = ["player_reception_yds_alternate", "player_receptions_alternate", "player_rush_yds_alternate",
                "player_pass_yds_alternate"]  # 4 more credits a game
 WINDOW_H, PREKICK_H, REFETCH_H, RESERVE, PER_WEEK = 15, 4, 3, 10, 9
+WINDOW_H = int(os.environ.get("ODDS_WINDOW_H") or WINDOW_H)  # a manual run can look further ahead (e.g. Friday for Sunday)
 SPREAD_MIN, TOTAL_MIN = 4, 47
 TEAM_AB = {"Arizona Cardinals": "ARI", "Atlanta Falcons": "ATL", "Baltimore Ravens": "BAL", "Buffalo Bills": "BUF",
            "Carolina Panthers": "CAR", "Chicago Bears": "CHI", "Cincinnati Bengals": "CIN", "Cleveland Browns": "CLE",

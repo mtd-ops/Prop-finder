@@ -8,7 +8,12 @@ on:
     - cron: "45 18 * * 0"   # ~2:45 PM ET Sunday: refreshes 4 PM lines if the budget allows
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      window_hours:
+        description: "Pull lines for games starting within this many hours (default 15)"
+        required: false
+        default: "15"
 permissions:
   contents: write
   pages: write
@@ -43,7 +48,7 @@ jobs:
         run: |
           curl -sfL "${{ steps.pages.outputs.base_url }}/odds.json" -o site/odds.json || rm -f site/odds.json
           curl -sfL "${{ steps.pages.outputs.base_url }}/closing.json" -o site/closing.json || rm -f site/closing.json
-          python3 build_odds.py site
+          ODDS_WINDOW_H="${{ inputs.window_hours }}" python3 build_odds.py site
       - name: Track the model's own picks and slips
         continue-on-error: true
         run: |
@@ -60,7 +65,7 @@ jobs:
           git add logs/tracking.json
           # manual runs also keep a copy of the lines so they can be reviewed outside the app
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -f site/odds.json ]; then cp site/odds.json logs/odds.json; git add logs/odds.json; fi
-          git diff --cached --quiet || (git commit -m "tracking snapshot [skip ci]" && git push)
+          git diff --cached --quiet || (git commit -m "tracking snapshot [skip ci]" && (git push || (git pull --rebase && git push)))
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
