@@ -4,3 +4,8 @@
 #   JAX
 # Put a minus in front to never pull a team's game, saving credits:
 #   -NYG
+
+# Week 10 (remove after Mon Nov 9): promo slips have legs in these games
+NO
+GB
+BUF
