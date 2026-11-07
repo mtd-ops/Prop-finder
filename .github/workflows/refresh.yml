@@ -40,6 +40,7 @@ jobs:
         run: |
           mkdir -p site
           cp index.html site/
+          cp -r daybook site/ 2>/dev/null || true
           cp inbox.json site/ 2>/dev/null || true
           python3 build_data.py site
       - name: Download DraftKings and FanDuel lines
@@ -48,6 +49,8 @@ jobs:
         run: |
           curl -sfL "${{ steps.pages.outputs.base_url }}/odds.json" -o site/odds.json || rm -f site/odds.json
           curl -sfL "${{ steps.pages.outputs.base_url }}/closing.json" -o site/closing.json || rm -f site/closing.json
+          # a commit tagged [skip odds] (e.g. a Daybook update) keeps the current lines and spends no credits
+          if [ "${{ contains(github.event.head_commit.message, '[skip odds]') }}" = "true" ]; then echo "Skipping odds pull"; exit 0; fi
           ODDS_WINDOW_H="${{ inputs.window_hours }}" python3 build_odds.py site
       - name: Track the model's own picks and slips
         continue-on-error: true
