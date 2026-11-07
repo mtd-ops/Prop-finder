@@ -165,6 +165,12 @@ dialog h2{font-family:var(--f-display);margin:0 0 6px;font-size:20px}
     <label class="field">Work starts<input type="time" id="workStart" value="08:30"></label>
     <label class="field">Work ends<input type="time" id="workEnd" value="17:00"></label>
   </div>
+  <div class="note" style="margin-top:16px">Early Sundays repeat every other week from this date.</div>
+  <label class="field">An early (4 am) Sunday<input type="date" id="earlySun" value="2026-11-08"></label>
+  <div class="two">
+    <label class="field">Sunday shift starts<input type="time" id="sunStart" value="05:00"></label>
+    <label class="field">Sunday shift ends<input type="time" id="sunEnd" value="13:30"></label>
+  </div>
   <div class="dlgbtns">
     <button class="btn warn" id="clearDay" type="button">Clear this day's checks</button>
     <button class="btn primary" id="saveSettings" type="button">Save</button>
@@ -178,13 +184,11 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
-let settings = store.get("daybook.settings", {workStart:"08:30", workEnd:"17:00"});
+let settings = Object.assign({workStart:"08:30", workEnd:"17:00", earlySun:"2026-11-08", sunStart:"05:00", sunEnd:"13:30"}, store.get("daybook.settings", {}));
 let checks = store.get("daybook.checks", {});
 
 /* ---- plan content ---- */
 const career = {
-  "2026-11-07":"Security+: Dion section 2, then its quiz",
-  "2026-11-08":"Security+: finish section 2 quiz; redo anything under 80%",
   "2026-11-09":"Security+: Dion Domain 1, next section",
   "2026-11-10":"Python: Automate the Boring Stuff ch. 1",
   "2026-11-11":"Security+: Dion Domain 1, next section",
@@ -213,8 +217,6 @@ const career = {
   "2026-12-06":"Security+: Domain 2 (1 hr)"
 };
 const meridian = {
-  "2026-11-07":"Read the Meridian tab in your roadmap, Step 1",
-  "2026-11-08":"Reread the case brief and rubric",
   "2026-11-09":"Apply to Capital One and CRA, then list the 7 decisions from the brief",
   "2026-11-10":"Decisions log: current pick and one line of why for each",
   "2026-11-11":"MooseFS docs: architecture, metadata, changelogs, metalogger",
@@ -242,8 +244,7 @@ const meridian = {
   "2026-12-06":"Review the week; plan finals"
 };
 const focusNotes = {
-  "2026-11-08":"Reset night. Lights out 10:30 so Monday's 6:00 start works.",
-  "2026-11-09":"Job applications go in tonight.",
+  "2026-11-09":"Day 1 of the plan. Job applications go in tonight.",
   "2026-11-13":"Status summary due.",
   "2026-11-16":"Checkpoint 3 week. Check the syllabus for the day.",
   "2026-11-25":"Draft goes out for feedback.",
@@ -262,6 +263,7 @@ const hm = m => pad(Math.floor(m/60))+":"+pad(m%60);
 const fmt12 = m => { let h = Math.floor(m/60)%24, mm = m%60; const ap = h>=12?"pm":"am"; h = h%12||12; return h+":"+pad(mm)+" "+ap; };
 const DOW = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const isEarlySun = s => { if (!settings.earlySun) return false; const d = fromISO(s); if (d.getDay()!==0) return false; const diff = Math.round((d - fromISO(settings.earlySun))/864e5); return diff % 14 === 0; };
 const weekNo = s => Math.floor((fromISO(s) - fromISO("2026-11-09"))/864e5/7)+1;
 
 function plan(date){
@@ -303,8 +305,27 @@ function plan(date){
     if (m) L.push(B("meridian","09:00","12:00","meridian","Meridian: "+m, date==="2026-11-07"?"About 30 minutes":"Three hours, phone in another room"));
     L.push(B("lunch","12:00","13:00","routine","Lunch","",true));
     if (c) L.push(B("career","13:00","14:30","career",c,""));
-    L.push(B("free","14:30","22:00","free","Free afternoon and evening","",true));
-    L.push(B("bed","23:00",null,"sleep","Lights out by 11:00","Up by 7:00 tomorrow"));
+    if (isEarlySun(addDays(date,1))){
+      L.push(B("free","14:30","19:30","free","Free afternoon","Early dinner",true));
+      L.push(B("screens","19:30",null,"routine","Screens off","Lay out work clothes · alarm set for 4:00"));
+      L.push(B("bed","20:30",null,"sleep","Lights out by 8:30","Up at 4:00 tomorrow for work"));
+    } else {
+      L.push(B("free","14:30","22:00","free","Free afternoon and evening","",true));
+      L.push(B("bed","23:00",null,"sleep","Lights out by 11:00","Up by 7:00 tomorrow"));
+    }
+  } else if (isEarlySun(date)){
+    const ss = mins(settings.sunStart), se = mins(settings.sunEnd);
+    L.push(B("wake","04:00","04:10","sleep","Up at 4:00","Alarm across the room · lights on · glass of water"));
+    L.push(B("ready","04:10",ss,"routine","Get ready, breakfast","",true));
+    L.push(B("work",ss,se,"work","Work","",true));
+    L.push(B("rest",se,se+90,"routine","Lunch and rest","A 20-minute nap at most, and before 3 pm",true));
+    let t = se+90;
+    if (m){ L.push(B("meridian",t,t+90,"meridian","Meridian: "+m,"Shorter session today")); t += 105; }
+    if (c){ L.push(B("career",t,t+30,"career",c,"30 minutes today")); t += 30; }
+    L.push(B("free",t,mins("19:30"),"free","Free time","",true));
+    L.push(B("review","19:30","20:00","routine","Weekly review","Tick off the week · look at next week in the Daybook"));
+    L.push(B("screens","20:30",null,"routine","Screens off","Open Monday's study page on the laptop"));
+    L.push(B("bed","21:30",null,"sleep","Lights out by 9:30","An hour early to make up for the 4:00 start"));
   } else {
     L.push(B("wake","07:00","07:15","sleep","Up by 7:00","Lights on, glass of water"));
     if (c) L.push(B("career","09:00","10:00","career",c,""));
@@ -351,7 +372,10 @@ function render(){
   document.getElementById("prevWeek").disabled = weekStart <= mondayOf(START);
   document.getElementById("nextWeek").disabled = addDays(weekStart,7) > END;
 
-  const f = focusNotes[sel];
+  const dd0 = fromISO(sel).getDay();
+  const f = isEarlySun(sel) ? "4:00 am work day. Lights out by 9:30 tonight to be ready for Monday." :
+            (dd0===6 && isEarlySun(addDays(sel,1))) ? "Up at 4:00 tomorrow for work. Screens off 7:30, lights out by 8:30." :
+            focusNotes[sel];
   document.getElementById("focus").hidden = !f;
   document.getElementById("focusTxt").textContent = f||"";
 
@@ -392,11 +416,17 @@ const dlg = document.getElementById("settings");
 document.getElementById("openSettings").onclick = ()=>{
   document.getElementById("workStart").value = settings.workStart;
   document.getElementById("workEnd").value = settings.workEnd;
+  document.getElementById("earlySun").value = settings.earlySun || "";
+  document.getElementById("sunStart").value = settings.sunStart;
+  document.getElementById("sunEnd").value = settings.sunEnd;
   dlg.showModal();
 };
 document.getElementById("saveSettings").onclick = ()=>{
   const s = document.getElementById("workStart").value, e = document.getElementById("workEnd").value;
-  if (s && e && mins(e) > mins(s)) settings = {workStart:s, workEnd:e};
+  if (s && e && mins(e) > mins(s)) { settings.workStart = s; settings.workEnd = e; }
+  settings.earlySun = document.getElementById("earlySun").value || "";
+  const a = document.getElementById("sunStart").value, z = document.getElementById("sunEnd").value;
+  if (a && z && mins(z) > mins(a)) { settings.sunStart = a; settings.sunEnd = z; }
   store.set("daybook.settings",settings); dlg.close(); render();
 };
 document.getElementById("clearDay").onclick = ()=>{ delete checks[sel]; store.set("daybook.checks",checks); dlg.close(); render(); };
