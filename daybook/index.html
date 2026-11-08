@@ -24,7 +24,7 @@
 :root{
   --bg:#eef1f4; --surface:#ffffff; --ink:#15212e; --muted:#5d6b79; --line:#d6dde4;
   --accent:#c4620a; --accent-soft:#fbead8;
-  --c-routine:#7d8a97; --c-career:#2f6fd6; --c-meridian:#b0420d; --c-work:#47566a; --c-sleep:#5b4bb7; --c-free:#2f8a64;
+  --c-routine:#7d8a97; --c-career:#2f6fd6; --c-meridian:#b0420d; --c-work:#47566a; --c-sleep:#5b4bb7; --c-free:#2f8a64; --c-class:#0f8a8f;
   --f-display:"Archivo", "Helvetica Neue", Arial, sans-serif;
   --f-body:"Public Sans", system-ui, -apple-system, Segoe UI, sans-serif;
   --f-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -32,12 +32,12 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0f151c; --surface:#17202a; --ink:#e6ecf2; --muted:#93a1af; --line:#26323e;
   --accent:#f0913a; --accent-soft:#3a2614;
-  --c-routine:#8795a3; --c-career:#6aa0ff; --c-meridian:#f07a3e; --c-work:#8a9bb0; --c-sleep:#9c8cf2; --c-free:#4cc08d;
+  --c-routine:#8795a3; --c-career:#6aa0ff; --c-meridian:#f07a3e; --c-work:#8a9bb0; --c-sleep:#9c8cf2; --c-free:#4cc08d; --c-class:#3cc7cc;
   color-scheme:dark }}
 :root[data-theme="dark"]{
   --bg:#0f151c; --surface:#17202a; --ink:#e6ecf2; --muted:#93a1af; --line:#26323e;
   --accent:#f0913a; --accent-soft:#3a2614;
-  --c-routine:#8795a3; --c-career:#6aa0ff; --c-meridian:#f07a3e; --c-work:#8a9bb0; --c-sleep:#9c8cf2; --c-free:#4cc08d;
+  --c-routine:#8795a3; --c-career:#6aa0ff; --c-meridian:#f07a3e; --c-work:#8a9bb0; --c-sleep:#9c8cf2; --c-free:#4cc08d; --c-class:#3cc7cc;
   color-scheme:dark }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -144,6 +144,7 @@ dialog h2{font-family:var(--f-display);margin:0 0 6px;font-size:20px}
   <div class="legend" aria-label="Legend">
     <span><i style="background:var(--c-career)"></i>Career</span>
     <span><i style="background:var(--c-meridian)"></i>Meridian</span>
+    <span><i style="background:var(--c-class)"></i>Class</span>
     <span><i style="background:var(--c-work)"></i>Work</span>
     <span><i style="background:var(--c-sleep)"></i>Sleep</span>
     <span><i style="background:var(--c-routine)"></i>Routine</span>
@@ -192,9 +193,9 @@ const career = {
   "2026-11-09":"Security+: Dion Domain 1, next section",
   "2026-11-10":"Python: Automate the Boring Stuff ch. 1",
   "2026-11-11":"Security+: Dion Domain 1, next section",
-  "2026-11-12":"Python: ch. 2",
+  "2026-11-12":"DGFR-351 lab: final read-through and submit",
   "2026-11-13":"Security+: redo any section quiz under 80%",
-  "2026-11-14":"Python ch. 3, then create a GitHub repo with a README",
+  "2026-11-14":"Python ch. 2–3, then create a GitHub repo with a README",
   "2026-11-15":"Security+: Dion Domain 1 (1 hr)",
   "2026-11-16":"Security+: Dion Domain 1, next section",
   "2026-11-17":"Python: ch. 4",
@@ -243,9 +244,15 @@ const meridian = {
   "2026-12-05":"After the final: 1-page Meridian summary for your portfolio",
   "2026-12-06":"Review the week; plan finals"
 };
+const extra = {
+  "2026-11-09":[{s:"21:00",e:"21:30",t:"DGFR-351 advanced lab: read every question, open the pcap, note which filters each needs"}],
+  "2026-11-10":[{s:"20:00",e:"21:30",t:"DGFR-351 advanced lab: answer the first half of the questions",d:"Short answers in your own words, screenshot as you go"}],
+  "2026-11-11":[{s:"20:00",e:"21:30",t:"DGFR-351 advanced lab: finish the questions and the appendix",d:"Same format as your Intermediate Lab 3 doc"}]
+};
 const focusNotes = {
-  "2026-11-09":"Day 1 of the plan. Job applications go in tonight.",
-  "2026-11-13":"Status summary due.",
+  "2026-11-09":"Day 1 of the plan. Job applications go in tonight. Advanced lab due Thursday.",
+  "2026-11-12":"DGFR-351 advanced lab due today.",
+  "2026-11-13":"Meridian status summary due.",
   "2026-11-16":"Checkpoint 3 week. Check the syllabus for the day.",
   "2026-11-25":"Draft goes out for feedback.",
   "2026-11-26":"Thanksgiving. No study. Keep the wake time near 7:00.",
@@ -335,6 +342,13 @@ function plan(date){
     L.push(B("screens","21:30",null,"routine","Screens off","Open Monday's study page on the laptop"));
     L.push(B("bed","22:30",null,"sleep","Lights out by 10:30","Up at 6:00 tomorrow"));
   }
+  (extra[date]||[]).forEach((x,i)=>{
+    const xs = mins(x.s), xe = mins(x.e);
+    L.forEach(b=>{ if (b.fixed && b.cat==="free" && b.e!=null && b.s < xe && b.e > xs){ if (b.s >= xs) b.s = xe; else b.e = xs; } });
+    L = L.filter(b=>!(b.fixed && b.cat==="free" && b.e!=null && b.e<=b.s));
+    L.push(B("class"+i,xs,xe,"class",x.t,x.d||""));
+  });
+  L.sort((a,b)=>a.s-b.s);
   return L;
 }
 
@@ -348,7 +362,7 @@ let weekStart = mondayOf(sel);
 const isDone = (d,id) => !!(checks[d] && checks[d][id]);
 function counts(d){ const L = plan(d).filter(b=>!b.fixed); return [L.filter(b=>isDone(d,b.id)).length, L.length]; }
 
-const CATN = {career:"Career",meridian:"Meridian",work:"Work",sleep:"Sleep",routine:"Routine",free:"Free"};
+const CATN = {class:"Class",career:"Career",meridian:"Meridian",work:"Work",sleep:"Sleep",routine:"Routine",free:"Free"};
 const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function render(){
