@@ -24,7 +24,7 @@
 :root{
   --bg:#eef1f4; --surface:#ffffff; --ink:#15212e; --muted:#5d6b79; --line:#d6dde4;
   --accent:#c4620a; --accent-soft:#fbead8;
-  --c-routine:#7d8a97; --c-career:#2f6fd6; --c-meridian:#b0420d; --c-work:#47566a; --c-sleep:#5b4bb7; --c-free:#2f8a64; --c-class:#0f8a8f;
+  --c-routine:#7d8a97; --c-career:#2f6fd6; --c-meridian:#b0420d; --c-work:#47566a; --c-sleep:#5b4bb7; --c-free:#2f8a64; --c-class:#0f8a8f; --c-lift:#c2365b;
   --f-display:"Archivo", "Helvetica Neue", Arial, sans-serif;
   --f-body:"Public Sans", system-ui, -apple-system, Segoe UI, sans-serif;
   --f-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -32,12 +32,12 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0f151c; --surface:#17202a; --ink:#e6ecf2; --muted:#93a1af; --line:#26323e;
   --accent:#f0913a; --accent-soft:#3a2614;
-  --c-routine:#8795a3; --c-career:#6aa0ff; --c-meridian:#f07a3e; --c-work:#8a9bb0; --c-sleep:#9c8cf2; --c-free:#4cc08d; --c-class:#3cc7cc;
+  --c-routine:#8795a3; --c-career:#6aa0ff; --c-meridian:#f07a3e; --c-work:#8a9bb0; --c-sleep:#9c8cf2; --c-free:#4cc08d; --c-class:#3cc7cc; --c-lift:#ff7a9a;
   color-scheme:dark }}
 :root[data-theme="dark"]{
   --bg:#0f151c; --surface:#17202a; --ink:#e6ecf2; --muted:#93a1af; --line:#26323e;
   --accent:#f0913a; --accent-soft:#3a2614;
-  --c-routine:#8795a3; --c-career:#6aa0ff; --c-meridian:#f07a3e; --c-work:#8a9bb0; --c-sleep:#9c8cf2; --c-free:#4cc08d; --c-class:#3cc7cc;
+  --c-routine:#8795a3; --c-career:#6aa0ff; --c-meridian:#f07a3e; --c-work:#8a9bb0; --c-sleep:#9c8cf2; --c-free:#4cc08d; --c-class:#3cc7cc; --c-lift:#ff7a9a;
   color-scheme:dark }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -49,6 +49,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{font-family:var(--f-display);font-weight:800;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.hbtns{display:flex;gap:8px}
+.iconbtn.add{color:var(--ink);border-color:var(--ink);font-weight:600}
+.wdays{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.wdays label{display:flex;align-items:center;justify-content:center;width:38px;height:34px;border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink);cursor:pointer}
+.wdays input{position:absolute;opacity:0;pointer-events:none}
+.wdays label:has(input:checked){background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.field select{font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.radio{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:var(--ink)}
+.ublist{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:6px}
+.ublist li{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.ublist li span{min-width:0}
+.ublist button{flex:none;border:0;background:none;color:var(--c-meridian);font-weight:600}
 .iconbtn{background:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--muted)}
 
 .dayhead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
@@ -119,7 +131,7 @@ dialog h2{font-family:var(--f-display);margin:0 0 6px;font-size:20px}
 <div class="wrap">
   <header class="top">
     <span class="brand">Daybook</span>
-    <button class="iconbtn" id="openSettings" type="button">Settings</button>
+    <span class="hbtns"><button class="iconbtn add" id="openAdd" type="button">+ Add block</button><button class="iconbtn" id="openSettings" type="button">Settings</button></span>
   </header>
 
   <section class="dayhead">
@@ -145,6 +157,7 @@ dialog h2{font-family:var(--f-display);margin:0 0 6px;font-size:20px}
     <span><i style="background:var(--c-career)"></i>Career</span>
     <span><i style="background:var(--c-meridian)"></i>Meridian</span>
     <span><i style="background:var(--c-class)"></i>Class</span>
+    <span><i style="background:var(--c-lift)"></i>Lift</span>
     <span><i style="background:var(--c-work)"></i>Work</span>
     <span><i style="background:var(--c-sleep)"></i>Sleep</span>
     <span><i style="background:var(--c-routine)"></i>Routine</span>
@@ -172,9 +185,30 @@ dialog h2{font-family:var(--f-display);margin:0 0 6px;font-size:20px}
     <label class="field">Sunday shift starts<input type="time" id="sunStart" value="05:00"></label>
     <label class="field">Sunday shift ends<input type="time" id="sunEnd" value="13:30"></label>
   </div>
+  <div class="note" style="margin-top:16px">Your blocks</div>
+  <ul class="ublist" id="ublist"></ul>
   <div class="dlgbtns">
     <button class="btn warn" id="clearDay" type="button">Clear this day's checks</button>
     <button class="btn primary" id="saveSettings" type="button">Save</button>
+  </div>
+</dialog>
+
+<dialog id="addDlg">
+  <h2>Add a block</h2>
+  <div class="note">For classes, lifts, or anything that changes week to week.</div>
+  <label class="field">What<input type="text" id="addTitle" placeholder="e.g. DGFR-351 class, Push day" maxlength="80"></label>
+  <label class="field">Type<select id="addCat"><option value="class">Class</option><option value="lift">Lift</option><option value="routine">Other</option></select></label>
+  <div class="two">
+    <label class="field">Starts<input type="time" id="addStart" value="12:00"></label>
+    <label class="field">Ends<input type="time" id="addEnd" value="13:00"></label>
+  </div>
+  <label class="radio"><input type="radio" name="addRep" id="addOnce" value="once" checked> Only on <span id="addOnceDay"></span></label>
+  <label class="radio"><input type="radio" name="addRep" id="addWeekly" value="weekly"> Every week on:</label>
+  <div class="wdays" id="addDays"></div>
+  <div class="note" id="addErr" hidden style="color:var(--c-meridian);margin-top:8px"></div>
+  <div class="dlgbtns">
+    <button class="btn" id="addCancel" type="button">Cancel</button>
+    <button class="btn primary" id="addSave" type="button">Add</button>
   </div>
 </dialog>
 
@@ -187,6 +221,7 @@ const store = {
 };
 let settings = Object.assign({workStart:"08:30", workEnd:"17:00", earlySun:"2026-11-08", sunStart:"05:00", sunEnd:"13:30"}, store.get("daybook.settings", {}));
 let checks = store.get("daybook.checks", {});
+let custom = store.get("daybook.custom", []);
 
 /* ---- plan content ---- */
 const career = {
@@ -349,6 +384,13 @@ function plan(date){
     L = L.filter(b=>!(b.fixed && b.cat==="free" && b.e!=null && b.e<=b.s));
     L.push(B("class"+i,xs,xe,"class",x.t,x.d||""));
   });
+  const dow0 = fromISO(date).getDay();
+  custom.filter(u => u.date===date || (u.days && u.days.includes(dow0) && date >= u.from)).forEach(u=>{
+    const xs = mins(u.s), xe = mins(u.e);
+    L.forEach(b=>{ if (b.fixed && b.cat==="free" && b.e!=null && b.s < xe && b.e > xs){ if (b.s >= xs) b.s = xe; else b.e = xs; } });
+    L = L.filter(b=>!(b.fixed && b.cat==="free" && b.e!=null && b.e<=b.s));
+    L.push(B("u"+u.id,xs,xe,u.cat,u.t,u.days?"Repeats "+u.days.map(k=>DOW[k].slice(0,3)).join(", "):""));
+  });
   L.sort((a,b)=>a.s-b.s);
   return L;
 }
@@ -363,7 +405,7 @@ let weekStart = mondayOf(sel);
 const isDone = (d,id) => !!(checks[d] && checks[d][id]);
 function counts(d){ const L = plan(d).filter(b=>!b.fixed); return [L.filter(b=>isDone(d,b.id)).length, L.length]; }
 
-const CATN = {class:"Class",career:"Career",meridian:"Meridian",work:"Work",sleep:"Sleep",routine:"Routine",free:"Free"};
+const CATN = {lift:"Lift",class:"Class",career:"Career",meridian:"Meridian",work:"Work",sleep:"Sleep",routine:"Routine",free:"Free"};
 const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function render(){
@@ -434,6 +476,7 @@ document.getElementById("openSettings").onclick = ()=>{
   document.getElementById("earlySun").value = settings.earlySun || "";
   document.getElementById("sunStart").value = settings.sunStart;
   document.getElementById("sunEnd").value = settings.sunEnd;
+  renderUblist();
   dlg.showModal();
 };
 document.getElementById("saveSettings").onclick = ()=>{
@@ -443,6 +486,48 @@ document.getElementById("saveSettings").onclick = ()=>{
   const a = document.getElementById("sunStart").value, z = document.getElementById("sunEnd").value;
   if (a && z && mins(z) > mins(a)) { settings.sunStart = a; settings.sunEnd = z; }
   store.set("daybook.settings",settings); dlg.close(); render();
+};
+function renderUblist(){
+  const ul = document.getElementById("ublist"); ul.innerHTML = "";
+  if (!custom.length){ const li = document.createElement("li"); li.textContent = "None yet. Use + Add block."; ul.appendChild(li); return; }
+  custom.forEach(u=>{
+    const li = document.createElement("li"), sp = document.createElement("span"), bt = document.createElement("button");
+    sp.textContent = u.t+" · "+fmt12(mins(u.s))+"–"+fmt12(mins(u.e))+" · "+(u.days ? "every "+u.days.map(k=>DOW[k].slice(0,3)).join(", ") : MON[fromISO(u.date).getMonth()]+" "+fromISO(u.date).getDate());
+    bt.type = "button"; bt.textContent = "Remove";
+    bt.onclick = ()=>{ custom = custom.filter(x=>x.id!==u.id); store.set("daybook.custom",custom); renderUblist(); render(); };
+    li.append(sp,bt); ul.appendChild(li);
+  });
+}
+const addDlg = document.getElementById("addDlg");
+document.getElementById("openAdd").onclick = ()=>{
+  const d = fromISO(sel);
+  document.getElementById("addOnceDay").textContent = DOW[d.getDay()]+", "+MON[d.getMonth()]+" "+d.getDate();
+  const box = document.getElementById("addDays"); box.innerHTML = "";
+  [1,2,3,4,5,6,0].forEach(k=>{
+    const lb = document.createElement("label"), cb = document.createElement("input");
+    cb.type = "checkbox"; cb.value = k; cb.id = "wd"+k; cb.checked = k===d.getDay();
+    cb.onchange = ()=>{ document.getElementById("addWeekly").checked = true; };
+    lb.append(cb, document.createTextNode(DOW[k].slice(0,3))); box.appendChild(lb);
+  });
+  document.getElementById("addTitle").value = "";
+  document.getElementById("addErr").hidden = true;
+  addDlg.showModal();
+};
+document.getElementById("addCancel").onclick = ()=> addDlg.close();
+document.getElementById("addSave").onclick = ()=>{
+  const t = document.getElementById("addTitle").value.trim(), cat = document.getElementById("addCat").value;
+  const a = document.getElementById("addStart").value, z = document.getElementById("addEnd").value;
+  const err = document.getElementById("addErr");
+  const weekly = document.getElementById("addWeekly").checked;
+  const days = [...document.querySelectorAll("#addDays input:checked")].map(x=>Number(x.value));
+  let msg = "";
+  if (!t) msg = "Give the block a name.";
+  else if (!a || !z || mins(z) <= mins(a)) msg = "The end time has to be after the start time.";
+  else if (weekly && !days.length) msg = "Pick at least one weekday.";
+  if (msg){ err.textContent = msg; err.hidden = false; return; }
+  const u = {id: Date.now().toString(36), t, cat, s:a, e:z};
+  if (weekly){ u.days = days; u.from = mondayOf(sel); } else { u.date = sel; }
+  custom.push(u); store.set("daybook.custom",custom); addDlg.close(); render();
 };
 document.getElementById("clearDay").onclick = ()=>{ delete checks[sel]; store.set("daybook.checks",checks); dlg.close(); render(); };
 setInterval(()=>{ if (sel===todayISO) render(); }, 60000);
