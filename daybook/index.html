@@ -225,11 +225,10 @@ let custom = store.get("daybook.custom", []);
 
 /* ---- plan content ---- */
 const career = {
-  "2026-11-09":"Security+: Dion Domain 1, next section",
-  "2026-11-10":"Python: Automate the Boring Stuff ch. 1",
-  "2026-11-11":"Security+: Dion Domain 1, next section",
-  "2026-11-12":"Python: ch. 2",
-  "2026-11-13":"Security+: redo any section quiz under 80%",
+    "2026-11-10":"Security+: Dion Domain 1, next section",
+  "2026-11-11":"Python: Automate the Boring Stuff ch. 1",
+  "2026-11-12":"Security+: Dion Domain 1, next section",
+  "2026-11-13":"Python: ch. 2",
   "2026-11-14":"Python ch. 3, then create a GitHub repo with a README",
   "2026-11-15":"Security+: Dion Domain 1 (1 hr)",
   "2026-11-16":"Security+: Dion Domain 1, next section",
@@ -253,12 +252,9 @@ const career = {
   "2026-12-06":"Security+: Domain 2 (1 hr)"
 };
 const meridian = {
-  "2026-11-09":"Apply to Capital One and CRA, then list the 7 decisions from the brief",
-  "2026-11-10":"Decisions log: current pick and one line of why for each",
-  "2026-11-11":"MooseFS docs: architecture, metadata, changelogs, metalogger",
-  "2026-11-12":"Write the status summary (rough and honest)",
-  "2026-11-13":"Turn in the status summary",
-  "2026-11-14":"XtreemFS and Hadoop papers: how they chose what to collect",
+    "2026-11-10":"Apply to Capital One and CRA, then list the 7 decisions from the brief",
+  "2026-11-11":"Decisions log: current pick and one line of why for each",
+      "2026-11-14":"MooseFS docs (architecture, metadata, changelogs), then the XtreemFS and Hadoop papers",
   "2026-11-15":"MooseFS trash and snapshots; 5-minute Checkpoint 3 practice",
   "2026-11-16":"NIST SP 800-86 and RFC 3227: order of operations",
   "2026-11-17":"PCI DSS Req. 10 and 12.10; Marqeta docs",
@@ -280,15 +276,16 @@ const meridian = {
   "2026-12-06":"Review the week; plan finals"
 };
 const extra = {
-  "2026-11-09":[{s:"21:00",e:"21:30",t:"DGFR-351 advanced lab: read every question, open the pcap, note which filters each needs"}],
-  "2026-11-10":[{s:"20:00",e:"21:30",t:"DGFR-351 advanced lab: answer the first half of the questions",d:"Short answers in your own words, screenshot as you go"}],
-  "2026-11-11":[{s:"20:00",e:"21:30",t:"DGFR-351 advanced lab: finish the questions and the appendix",d:"Same format as your Intermediate Lab 3 doc"}],
-  "2026-11-12":[{s:"20:00",e:"21:30",t:"DGFR-351 advanced lab: final read-through, fix gaps, submit",d:"Due at midnight. Submit before screens off, not at 11:59"}]
+  "2026-11-10":[{s:"21:00",e:"21:30",t:"DGFR-351 advanced lab: read every question, open the pcap, note which filters each needs"}],
+  "2026-11-11":[{s:"20:00",e:"21:30",t:"DGFR-351 advanced lab: answer the first half of the questions",d:"Short answers in your own words, screenshot as you go"}],
+  "2026-11-12":[{s:"19:00",e:"21:30",t:"DGFR-351 advanced lab: finish the questions and appendix, then submit",d:"Due at midnight. Same format as your Intermediate Lab 3 doc"}],
+  "2026-11-13":[{s:"19:00",e:"20:30",cat:"meridian",t:"Meridian: write the status summary and turn it in",d:"Rough and honest: where you are, what's next"}]
 };
 const focusNotes = {
-  "2026-11-09":"Day 1 of the plan. Job applications go in tonight. Advanced lab due Thursday.",
-  "2026-11-12":"DGFR-351 advanced lab due at midnight. Submit by 9:30.",
-  "2026-11-13":"Meridian status summary due.",
+  "2026-11-09":"The plan starts tomorrow. Lights out by 10:30 tonight.",
+  "2026-11-10":"Day 1 of the plan. Job applications go in tonight. Advanced lab due Thursday at midnight.",
+  "2026-11-12":"DGFR-351 advanced lab due at midnight. Tonight is all lab.",
+  "2026-11-13":"Meridian status summary due. Write it and turn it in tonight.",
   "2026-11-16":"Checkpoint 3 week. Check the syllabus for the day.",
   "2026-11-25":"Draft goes out for feedback.",
   "2026-11-26":"Thanksgiving. No study. Keep the wake time near 7:00.",
@@ -336,8 +333,8 @@ function plan(date){
       L.push(B("screens","22:00",null,"routine","Screens off","Open Monday's study page on the laptop"));
       L.push(B("bed","23:00",null,"sleep","Lights out by 11:00","Up by 7:00 tomorrow at the latest"));
     } else {
-      const mEnd = date==="2026-11-09" ? dinnerEnd+120 : dinnerEnd+60;
-      if (m) L.push(B("meridian",dinnerEnd,mEnd,"meridian","Meridian: "+m, date==="2026-11-09"?"Capital One includes an online assessment; budget about an hour":"Log what you learn in your research log"));
+      const mEnd = date==="2026-11-10" ? dinnerEnd+120 : dinnerEnd+60;
+      if (m) L.push(B("meridian",dinnerEnd,mEnd,"meridian","Meridian: "+m, date==="2026-11-10"?"Capital One includes an online assessment; budget about an hour":"Log what you learn in your research log"));
       if (mEnd < mins("21:30")) L.push(B("free",mEnd,mins("21:30"),"free","Class work, chart review, free time","",true));
       L.push(B("screens","21:30",null,"routine","Screens off","Open tomorrow's study page · write tomorrow's task on a sticky note"));
       L.push(B("bed","22:30",null,"sleep","Lights out by 10:30","Up at 6:00 tomorrow"));
@@ -382,7 +379,7 @@ function plan(date){
     const xs = mins(x.s), xe = mins(x.e);
     L.forEach(b=>{ if (b.fixed && b.cat==="free" && b.e!=null && b.s < xe && b.e > xs){ if (b.s >= xs) b.s = xe; else b.e = xs; } });
     L = L.filter(b=>!(b.fixed && b.cat==="free" && b.e!=null && b.e<=b.s));
-    L.push(B("class"+i,xs,xe,"class",x.t,x.d||""));
+    L.push(B("class"+i,xs,xe,x.cat||"class",x.t,x.d||""));
   });
   const dow0 = fromISO(date).getDay();
   custom.filter(u => u.date===date || (u.days && u.days.includes(dow0) && date >= u.from)).forEach(u=>{
