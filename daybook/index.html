@@ -226,10 +226,9 @@ let custom = store.get("daybook.custom", []);
 /* ---- plan content ---- */
 const career = {
     "2026-11-10":"Security+: Dion Domain 1, next section",
-  "2026-11-11":"Python: Automate the Boring Stuff ch. 1",
-  "2026-11-12":"Security+: Dion Domain 1, next section",
-  "2026-11-13":"Python: ch. 2",
-  "2026-11-14":"Python ch. 3, then create a GitHub repo with a README",
+    "2026-11-12":"Security+: Dion Domain 1, next section",
+  "2026-11-13":"Python: Automate the Boring Stuff ch. 1",
+  "2026-11-14":"Python ch. 2–3, then create a GitHub repo with a README",
   "2026-11-15":"Security+: Dion Domain 1 (1 hr)",
   "2026-11-16":"Security+: Dion Domain 1, next section",
   "2026-11-17":"Python: ch. 4",
@@ -253,8 +252,7 @@ const career = {
 };
 const meridian = {
     "2026-11-10":"Apply to Capital One and CRA, then list the 7 decisions from the brief",
-  "2026-11-11":"Decisions log: current pick and one line of why for each",
-      "2026-11-14":"MooseFS docs (architecture, metadata, changelogs), then the XtreemFS and Hadoop papers",
+        "2026-11-14":"MooseFS docs (architecture, metadata, changelogs), then the XtreemFS and Hadoop papers",
   "2026-11-15":"MooseFS trash and snapshots; 5-minute Checkpoint 3 practice",
   "2026-11-16":"NIST SP 800-86 and RFC 3227: order of operations",
   "2026-11-17":"PCI DSS Req. 10 and 12.10; Marqeta docs",
@@ -277,15 +275,16 @@ const meridian = {
 };
 const extra = {
   "2026-11-10":[{s:"21:00",e:"21:30",t:"DGFR-351 advanced lab: read every question, open the pcap, note which filters each needs"}],
-  "2026-11-11":[{s:"20:00",e:"21:30",t:"DGFR-351 advanced lab: answer the first half of the questions",d:"Short answers in your own words, screenshot as you go"}],
-  "2026-11-12":[{s:"19:00",e:"21:30",t:"DGFR-351 advanced lab: finish the questions and appendix, then submit",d:"Due at midnight. Same format as your Intermediate Lab 3 doc"}],
-  "2026-11-13":[{s:"19:00",e:"20:30",cat:"meridian",t:"Meridian: write the status summary and turn it in",d:"Rough and honest: where you are, what's next"}],
+  "2026-11-11":[{s:"19:00",e:"20:30",cat:"career",t:"Apply to Capital One and CRA (moved from Tuesday)",d:"Capital One first: it includes an online assessment"},{s:"20:30",e:"21:30",t:"DGFR-351 advanced lab: start the July 10 interior page",d:"Sent mail, drafts and searches; frame numbers into the template"}],
+  "2026-11-12":[{s:"19:00",e:"21:30",t:"DGFR-351 advanced lab: finish the capture pages, How It Connects and claims check, then submit",d:"Due at midnight. Exterior and July 12 pages get a line or two each"}],
+  "2026-11-13":[{s:"19:00",e:"21:00",cat:"meridian",t:"Meridian: decisions log for the 7 decisions, then write the status summary and turn it in",d:"The log comes first; the summary is built from it"}],
   "2026-11-14":[{s:"15:00",e:"16:30",cat:"meridian",t:"Meridian: research log for each paper and doc you read",d:"For each: what it shows, and what it means for collecting from MooseFS"},{s:"16:45",e:"17:15",cat:"career",t:"Security+: redo any Domain 1 section quiz under 80%",d:"Catch-up from Friday"}],
   "2026-11-15":[{s:"13:30",e:"15:00",cat:"meridian",t:"Meridian: update the decisions log and list your research gaps",d:"Change any pick the reading changed; mark what you still can't explain"},{s:"15:15",e:"16:00",cat:"career",t:"Python: redo ch. 1–3 examples from memory",d:"Type them without looking, then check"}]
 };
 const focusNotes = {
   "2026-11-09":"The plan starts tomorrow. Lights out by 10:30 tonight.",
   "2026-11-10":"Day 1 of the plan. Job applications go in tonight. Advanced lab due Thursday at midnight.",
+  "2026-11-11":"Catch-up day: sleep until 6:30, applications tonight. Lights out by 10:30.",
   "2026-11-12":"DGFR-351 advanced lab due at midnight. Tonight is all lab.",
   "2026-11-13":"Meridian status summary due. Write it and turn it in tonight.",
   "2026-11-14":"Catch-up Saturday: extra Meridian and Security+ this afternoon.",
@@ -325,9 +324,9 @@ function plan(date){
     return L;
   }
   if (dow>=1 && dow<=5){
-    L.push(B("wake","06:00","06:10","sleep","Up at 6:00","Alarm across the room · lights on · glass of water"));
+    L.push(date==="2026-11-11" ? B("wake","06:30","06:40","sleep","Up at 6:30","Recovery morning after a late night · no study block today") : B("wake","06:00","06:10","sleep","Up at 6:00","Alarm across the room · lights on · glass of water"));
     if (c) L.push(B("career","06:10","06:40","career",c,"Phone stays off until this is done"));
-    L.push(B("ready","06:40",Math.min(ws,mins("07:30")),"routine","Phone, breakfast, get ready","",true));
+    L.push(B("ready",date==="2026-11-11"?"06:40":"06:40",Math.min(ws,mins("07:30")),"routine","Phone, breakfast, get ready","",true));
     L.push(B("work",ws,we,"work","Work","",true));
     const dinnerEnd = Math.max(we+60, mins("19:00"));
     L.push(B("dinner",we,dinnerEnd,"routine","Dinner and downtime","",true));
