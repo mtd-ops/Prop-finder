@@ -225,39 +225,36 @@ let custom = store.get("daybook.custom", []);
 
 /* ---- plan content ---- */
 const career = {
-    "2026-11-10":"Security+: Dion Domain 1, next section",
-    "2026-11-12":"Security+: Dion Domain 1, next section",
-  "2026-11-13":"Python: Automate the Boring Stuff ch. 1",
-  "2026-11-14":"Python ch. 2–3, then create a GitHub repo with a README",
-  "2026-11-15":"Security+: Dion Domain 1 (1 hr)",
+  "2026-11-14":"Apply to Capital One's Cyber Security Development Program, then CRA",
+  "2026-11-15":"Security+: Dion Domain 1, first sections (1 hr)",
   "2026-11-16":"Security+: Dion Domain 1, next section",
-  "2026-11-17":"Python: ch. 4",
+  "2026-11-17":"Python: Automate the Boring Stuff ch. 1",
   "2026-11-18":"Security+: Dion Domain 1, next section",
-  "2026-11-19":"Python: ch. 5",
-  "2026-11-20":"Security+: section quiz review",
-  "2026-11-21":"Python: ch. 6",
-  "2026-11-22":"Security+: finish Domain 1 and its quiz (1 hr)",
-  "2026-11-23":"Security+: start Domain 2",
-  "2026-11-24":"Python: auth.log parser, step 1 (print every line)",
-  "2026-11-25":"Security+: Domain 2, next section",
-  "2026-11-28":"Python: parser steps 2–3 (failed logins, pull the IP)",
+  "2026-11-19":"Python: ch. 2",
+  "2026-11-20":"Security+: redo any section quiz under 80%",
+  "2026-11-21":"Python ch. 3, then create a GitHub repo with a README",
+  "2026-11-22":"Security+: Domain 1, 30 minutes",
+  "2026-11-23":"Security+: finish Domain 1 and its quiz",
+  "2026-11-24":"Python: ch. 4",
+  "2026-11-25":"Security+: start Domain 2",
+  "2026-11-28":"Python: ch. 5",
   "2026-11-29":"Security+: Domain 2 (1 hr)",
   "2026-11-30":"Security+: Domain 2, next section",
-  "2026-12-01":"Python: parser step 4 (count per IP)",
+  "2026-12-01":"Python: ch. 6",
   "2026-12-02":"Security+: Domain 2, next section",
-  "2026-12-03":"Python: parser step 5 (top five IPs)",
+  "2026-12-03":"Python: auth.log parser, step 1 (print every line)",
   "2026-12-04":"Security+: section quiz review",
-  "2026-12-05":"Python: parser step 6, then push it to GitHub",
+  "2026-12-05":"Python: parser steps 2–3, then push it to GitHub",
   "2026-12-06":"Security+: Domain 2 (1 hr)"
 };
 const meridian = {
-    "2026-11-10":"Apply to Capital One and CRA, then list the 7 decisions from the brief",
-        "2026-11-14":"MooseFS docs (architecture, metadata, changelogs), then the XtreemFS and Hadoop papers",
-  "2026-11-15":"MooseFS trash and snapshots; 5-minute Checkpoint 3 practice",
-  "2026-11-16":"NIST SP 800-86 and RFC 3227: order of operations",
-  "2026-11-17":"PCI DSS Req. 10 and 12.10; Marqeta docs",
-  "2026-11-18":"Tradeoff tables: target layer and strategy",
-  "2026-11-19":"Tradeoff tables: OS, tools, system state, inconsistencies",
+  "2026-11-14":"Reread the brief and rubric, then the decisions log: all 7 decisions, a first pick and one line of why",
+  "2026-11-15":"MooseFS docs: architecture, metadata, changelogs, metalogger, trash, snapshots",
+  "2026-11-16":"Tradeoff tables: target layer and acquisition strategy (bring to Checkpoint 3)",
+  "2026-11-17":"NIST SP 800-86 and RFC 3227: order of operations",
+  "2026-11-18":"Tradeoff tables: OS, tools, system state, inconsistencies",
+  "2026-11-19":"PCI DSS Req. 10 and 12.10; Marqeta docs",
+  "2026-11-20":"Update the decisions log with this week's reading",
   "2026-11-21":"Integrity model answers; one source beyond the list; limits list",
   "2026-11-22":"Draft the tradeoffs and strategy sections",
   "2026-11-23":"Draft the integrity model",
@@ -274,21 +271,12 @@ const meridian = {
   "2026-12-06":"Review the week; plan finals"
 };
 const extra = {
-  "2026-11-10":[{s:"21:00",e:"21:30",t:"DGFR-351 advanced lab: read every question, open the pcap, note which filters each needs"}],
-  "2026-11-11":[{s:"19:00",e:"20:30",cat:"career",t:"Apply to Capital One and CRA (moved from Tuesday)",d:"Capital One first: it includes an online assessment"},{s:"20:30",e:"21:30",t:"DGFR-351 advanced lab: start the July 10 interior page",d:"Sent mail, drafts and searches; frame numbers into the template"}],
-  "2026-11-12":[{s:"19:00",e:"21:30",t:"DGFR-351 advanced lab: finish the capture pages, How It Connects and claims check, then submit",d:"Due at midnight. Exterior and July 12 pages get a line or two each"}],
-  "2026-11-13":[{s:"19:00",e:"21:00",cat:"meridian",t:"Meridian: decisions log for the 7 decisions, then write the status summary and turn it in",d:"The log comes first; the summary is built from it"}],
-  "2026-11-14":[{s:"15:00",e:"16:30",cat:"meridian",t:"Meridian: research log for each paper and doc you read",d:"For each: what it shows, and what it means for collecting from MooseFS"},{s:"16:45",e:"17:15",cat:"career",t:"Security+: redo any Domain 1 section quiz under 80%",d:"Catch-up from Friday"}],
-  "2026-11-15":[{s:"13:30",e:"15:00",cat:"meridian",t:"Meridian: update the decisions log and list your research gaps",d:"Change any pick the reading changed; mark what you still can't explain"},{s:"15:15",e:"16:00",cat:"career",t:"Python: redo ch. 1–3 examples from memory",d:"Type them without looking, then check"}]
+  "2026-11-14":[{s:"15:00",e:"16:00",cat:"meridian",t:"Meridian: write the status summary from your decisions log and turn it in",d:"Skip if it's already in. If it's late, add a one-line note; late beats missing"}],
+  "2026-11-15":[{s:"13:30",e:"15:00",cat:"meridian",t:"Meridian: XtreemFS and Hadoop papers, focused on how they chose what to collect",d:"Research log: what each shows and what it means for MooseFS"}]
 };
 const focusNotes = {
-  "2026-11-09":"The plan starts tomorrow. Lights out by 10:30 tonight.",
-  "2026-11-10":"Day 1 of the plan. Job applications go in tonight. Advanced lab due Thursday at midnight.",
-  "2026-11-11":"Catch-up day: sleep until 6:30, applications tonight. Lights out by 10:30.",
-  "2026-11-12":"DGFR-351 advanced lab due at midnight. Tonight is all lab.",
-  "2026-11-13":"Meridian status summary due. Write it and turn it in tonight.",
-  "2026-11-14":"Catch-up Saturday: extra Meridian and Security+ this afternoon.",
-  "2026-11-15":"Catch-up Sunday: extra afternoon session, then lights out by 10:30.",
+  "2026-11-14":"Fresh start. Job applications and the Meridian reset today. Nothing else.",
+  "2026-11-15":"Reading day for Meridian. Lights out 10:30 for Monday's 6:00 start.",
   "2026-11-16":"Checkpoint 3 week. Check the syllabus for the day.",
   "2026-11-25":"Draft goes out for feedback.",
   "2026-11-26":"Thanksgiving. No study. Keep the wake time near 7:00.",
@@ -324,7 +312,7 @@ function plan(date){
     return L;
   }
   if (dow>=1 && dow<=5){
-    L.push(date==="2026-11-11" ? B("wake","06:30","06:40","sleep","Up at 6:30","Recovery morning after a late night · no study block today") : B("wake","06:00","06:10","sleep","Up at 6:00","Alarm across the room · lights on · glass of water"));
+    L.push(date==="2026-11-xx" ? B("wake","06:30","06:40","sleep","Up at 6:30","Recovery morning after a late night · no study block today") : B("wake","06:00","06:10","sleep","Up at 6:00","Alarm across the room · lights on · glass of water"));
     if (c) L.push(B("career","06:10","06:40","career",c,"Phone stays off until this is done"));
     L.push(B("ready",date==="2026-11-11"?"06:40":"06:40",Math.min(ws,mins("07:30")),"routine","Phone, breakfast, get ready","",true));
     L.push(B("work",ws,we,"work","Work","",true));
@@ -336,8 +324,8 @@ function plan(date){
       L.push(B("screens","22:00",null,"routine","Screens off","Open Monday's study page on the laptop"));
       L.push(B("bed","23:00",null,"sleep","Lights out by 11:00","Up by 7:00 tomorrow at the latest"));
     } else {
-      const mEnd = date==="2026-11-10" ? dinnerEnd+120 : dinnerEnd+60;
-      if (m) L.push(B("meridian",dinnerEnd,mEnd,"meridian","Meridian: "+m, date==="2026-11-10"?"Capital One includes an online assessment; budget about an hour":"Log what you learn in your research log"));
+      const mEnd = date==="2026-11-xx" ? dinnerEnd+120 : dinnerEnd+60;
+      if (m) L.push(B("meridian",dinnerEnd,mEnd,"meridian","Meridian: "+m, date==="2026-11-xx"?"Capital One includes an online assessment; budget about an hour":"Log what you learn in your research log"));
       if (mEnd < mins("21:30")) L.push(B("free",mEnd,mins("21:30"),"free","Class work, chart review, free time","",true));
       L.push(B("screens","21:30",null,"routine","Screens off","Open tomorrow's study page · write tomorrow's task on a sticky note"));
       L.push(B("bed","22:30",null,"sleep","Lights out by 10:30","Up at 6:00 tomorrow"));
