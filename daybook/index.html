@@ -225,21 +225,18 @@ let custom = store.get("daybook.custom", []);
 
 /* ---- plan content ---- */
 const career = {
-  "2026-11-14":"Apply to Capital One's Cyber Security Development Program, then CRA",
-  "2026-11-15":"Security+: Dion Domain 1, first sections (1 hr)",
-  "2026-11-16":"Security+: Dion Domain 1, next section",
-  "2026-11-17":"Python: Automate the Boring Stuff ch. 1",
-  "2026-11-18":"Security+: Dion Domain 1, next section",
-  "2026-11-19":"Python: ch. 2",
-  "2026-11-20":"Security+: redo any section quiz under 80%",
-  "2026-11-21":"Python ch. 3, then create a GitHub repo with a README",
+  "2026-11-17":"Apply to CRA's 2027 Cyber & Forensic Technology posting",
+  "2026-11-18":"Security+: Dion Domain 1, first section",
+  "2026-11-19":"Python: Automate the Boring Stuff ch. 1",
+  "2026-11-20":"Security+: Dion Domain 1, next section",
+  "2026-11-21":"Python ch. 2–3, then create a GitHub repo with a README",
   "2026-11-22":"Security+: Domain 1, 30 minutes",
-  "2026-11-23":"Security+: finish Domain 1 and its quiz",
+  "2026-11-23":"Security+: Dion Domain 1, next section",
   "2026-11-24":"Python: ch. 4",
-  "2026-11-25":"Security+: start Domain 2",
+  "2026-11-25":"Security+: Domain 1 section quizzes",
   "2026-11-28":"Python: ch. 5",
-  "2026-11-29":"Security+: Domain 2 (1 hr)",
-  "2026-11-30":"Security+: Domain 2, next section",
+  "2026-11-29":"Security+: finish Domain 1 (1 hr)",
+  "2026-11-30":"Security+: start Domain 2",
   "2026-12-01":"Python: ch. 6",
   "2026-12-02":"Security+: Domain 2, next section",
   "2026-12-03":"Python: auth.log parser, step 1 (print every line)",
@@ -248,18 +245,14 @@ const career = {
   "2026-12-06":"Security+: Domain 2 (1 hr)"
 };
 const meridian = {
-  "2026-11-14":"Reread the brief and rubric, then the decisions log: all 7 decisions, a first pick and one line of why",
-  "2026-11-15":"MooseFS docs: architecture, metadata, changelogs, metalogger, trash, snapshots",
-  "2026-11-16":"Tradeoff tables: target layer and acquisition strategy (bring to Checkpoint 3)",
-  "2026-11-17":"NIST SP 800-86 and RFC 3227: order of operations",
-  "2026-11-18":"Tradeoff tables: OS, tools, system state, inconsistencies",
-  "2026-11-19":"PCI DSS Req. 10 and 12.10; Marqeta docs",
+  "2026-11-18":"MooseFS docs: architecture, metadata, changelogs, metalogger, trash, snapshots",
+  "2026-11-19":"Tradeoff tables: target layer and acquisition strategy (bring to Checkpoint 3)",
   "2026-11-20":"Update the decisions log with this week's reading",
-  "2026-11-21":"Integrity model answers; one source beyond the list; limits list",
-  "2026-11-22":"Draft the tradeoffs and strategy sections",
-  "2026-11-23":"Draft the integrity model",
-  "2026-11-24":"Draft limits, assumptions, environment and tools",
-  "2026-11-25":"Executive summary and references; send the draft for feedback",
+  "2026-11-21":"XtreemFS and Hadoop papers, then NIST SP 800-86 and RFC 3227 for order of operations",
+  "2026-11-22":"Tradeoff tables: OS, tools, system state, inconsistencies",
+  "2026-11-23":"PCI DSS Req. 10 and 12.10; integrity model answers",
+  "2026-11-24":"Draft the tradeoffs, strategy and integrity sections",
+  "2026-11-25":"Draft limits and assumptions, then the executive summary; send the draft for feedback",
   "2026-11-28":"Revise from feedback; check every [verify]; citations",
   "2026-11-29":"Defense rehearsal out loud; final read-through",
   "2026-11-30":"Final week: defense questions 1–5 out loud",
@@ -271,16 +264,16 @@ const meridian = {
   "2026-12-06":"Review the week; plan finals"
 };
 const extra = {
-  "2026-11-14":[{s:"15:00",e:"16:00",cat:"meridian",t:"Meridian: write the status summary from your decisions log and turn it in",d:"Skip if it's already in. If it's late, add a one-line note; late beats missing"}],
-  "2026-11-15":[{s:"13:30",e:"15:00",cat:"meridian",t:"Meridian: XtreemFS and Hadoop papers, focused on how they chose what to collect",d:"Research log: what each shows and what it means for MooseFS"}]
+  "2026-11-16":[{s:"19:00",e:"20:00",cat:"career",t:"Apply to Capital One's Cyber Security Development Program",d:"Includes an online assessment. Just this one tonight"},{s:"20:00",e:"21:00",cat:"meridian",t:"Meridian: reread the brief and rubric, then list the 7 decisions",d:"A first guess for each is enough"}],
+  "2026-11-17":[{s:"19:00",e:"21:00",cat:"meridian",t:"Meridian: decisions log, then write the status summary and send it",d:"One line of why for each decision. Add a short note that the summary is late"}]
 };
 const focusNotes = {
-  "2026-11-14":"Fresh start. Job applications and the Meridian reset today. Nothing else.",
-  "2026-11-15":"Reading day for Meridian. Lights out 10:30 for Monday's 6:00 start.",
-  "2026-11-16":"Checkpoint 3 week. Check the syllabus for the day.",
+  "2026-11-16":"Day 1, for real. Small start: one application and one hour of Meridian tonight.",
+  "2026-11-17":"Status summary goes out tonight.",
+  "2026-11-19":"Checkpoint 3 week. Bring the target-layer and strategy tables.",
   "2026-11-25":"Draft goes out for feedback.",
   "2026-11-26":"Thanksgiving. No study. Keep the wake time near 7:00.",
-  "2026-11-27":"Day off. Keep the wake time near 7:00.",
+  "2026-11-27":"Day off, or a catch-up day for the Meridian draft if you need it.",
   "2026-11-30":"Final week: report and oral defense (dates on syllabus)."
 };
 
