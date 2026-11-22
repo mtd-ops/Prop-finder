@@ -249,7 +249,6 @@ const meridian = {
   "2026-11-23":"NIST SP 800-86 and RFC 3227 order of volatility, then write the ranked preservation list",
   "2026-11-24":"Tradeoff tables: OS, tools, system state; research acquisition tools",
   "2026-11-25":"PCI DSS Req. 10 and 12.10; integrity model answers",
-  "2026-11-27":"Draft the tradeoffs, strategy and integrity sections",
   "2026-11-28":"Draft limits and assumptions, then the executive summary; send the draft for feedback",
   "2026-11-29":"Check every [verify]; citations; first out-loud run of the defense",
   "2026-11-30":"Final week: revise from feedback; defense questions 1–5 out loud",
@@ -260,15 +259,31 @@ const meridian = {
   "2026-12-05":"After the final: 1-page Meridian summary for your portfolio",
   "2026-12-06":"Review the week; plan finals"
 };
-const extra = {};
+const extra = {
+  "2026-11-21":[{s:"15:00",e:"16:00",t:"CMSC 240: Dive Into Systems ch. 2, pointers and functions",d:"Write a function that sets a sum and a largest value through pointers · make, run until ASan is clean"}],
+  "2026-11-22":[{s:"17:15",e:"18:00",t:"CMSC 240: ch. 2 arrays",d:"Reverse an int array in place · draw the memory on paper first · ASan clean"}],
+  "2026-11-23":[{s:"20:00",e:"20:45",t:"CMSC 240: ch. 2 strings and the string library",d:"Write your own strlen, then a copy that moves one char at a time and adds the '\\0'"}],
+  "2026-11-24":[{s:"20:00",e:"20:45",t:"CMSC 240: ch. 2 dynamic memory",d:"Return a new copy of a string: malloc the right size, check NULL, free in main"}],
+  "2026-11-25":[{s:"20:00",e:"20:45",t:"CMSC 240: redo stats and flip_string from scratch",d:"Timed, no old code · comment first · make, run until ASan is clean"}],
+  "2026-11-27":[{s:"10:00",e:"11:30",t:"CMSC 240: redo doubled and red from scratch",d:"Timed, no old code · comment first · ASan clean · then ask Claude for practice problems"},{s:"13:00",e:"16:00",cat:"meridian",t:"Meridian: draft the tradeoffs, strategy and integrity sections",d:"Three hours, phone in another room"}],
+  "2026-11-28":[{s:"15:00",e:"16:30",t:"CMSC 240: full mock exam",d:"All four, timed · comments first · get three fully clean before the fourth (only the best three count)"}],
+  "2026-11-29":[{s:"13:00",e:"14:00",t:"CMSC 240: fix what the mock exposed",d:"CS50 Week 4 'Memory' if anything still feels fuzzy · light review"}],
+  "2026-11-30":[{s:"20:00",e:"20:45",t:"CMSC 240: retake prep, one new practice problem",d:"Timed, comment first, ASan clean · skip once the retake is done"}],
+  "2026-12-01":[{s:"20:00",e:"20:45",t:"CMSC 240: retake prep, redo your weakest problem",d:"Timed, comment first, ASan clean · skip once the retake is done"}],
+  "2026-12-02":[{s:"20:00",e:"20:45",t:"CMSC 240: retake prep, one new practice problem",d:"Timed, comment first, ASan clean · skip once the retake is done"}],
+  "2026-12-03":[{s:"20:00",e:"20:45",t:"CMSC 240: retake prep, redo your weakest problem",d:"Timed, comment first, ASan clean · skip once the retake is done"}],
+  "2026-12-04":[{s:"20:00",e:"20:45",t:"CMSC 240: retake prep, short mock (three problems)",d:"Skip once the retake is done"}]
+};
 const focusNotes = {
   "2026-11-17":"Rest night. Nothing due tonight. Lights out 10:30.",
   "2026-11-18":"Restart. 30 minutes of Python this morning and one hour of Meridian tonight. That's the whole day.",
   "2026-11-19":"Decisions log tonight. Only the final deadline matters now.",
   "2026-11-21":"Checkpoint 3 tables done today. Bed by 8:30 for the early Sunday.",
-  "2026-11-28":"Draft goes out for feedback.",
+  "2026-11-23":"NIST and RFC 3227 tonight: end with a ranked preservation list.",
   "2026-11-26":"Thanksgiving. No study. Keep the wake time near 7:00.",
-  "2026-11-27":"Draft day: write the core sections.",
+  "2026-11-27":"Draft day: CMSC 240 practice in the morning, Meridian core sections in the afternoon.",
+  "2026-11-28":"Meridian draft goes out this morning. CMSC 240 mock exam this afternoon: bank three clean programs before the fourth.",
+  "2026-11-29":"Retake could be any day after break. Bed on time tonight.",
   "2026-11-30":"Final week: report and oral defense (dates on syllabus)."
 };
 
